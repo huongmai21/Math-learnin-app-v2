@@ -1,0 +1,341 @@
+.bookmarks-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 70px 20px 20px;
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+.bookmarks-container {
+  background-color: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.bookmarks-container h1 {
+  font-size: clamp(2rem, 4vw, 2.5rem);
+  color: #333;
+  text-align: center;
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+.bookmarks-container h1::after {
+  content: "";
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 4px;
+  background-color: #ff6f61;
+  border-radius: 2px;
+}
+
+.bookmarks-list {
+  margin-bottom: 2rem;
+}
+
+.bookmark-item {
+  display: flex;
+  flex-direction: column;
+  background-color: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  margin: 1rem;
+}
+
+.bookmark-item:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.bookmark-image {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.bookmark-item:hover .bookmark-image {
+  transform: scale(1.05);
+}
+
+.bookmark-content {
+  padding: 1.5rem;
+  flex-grow: 1;
+}
+
+.bookmark-content h2 {
+  font-size: 1.4rem;
+  color: #333;
+  margin: 0 0 0.75rem;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.bookmark-content h2:hover {
+  color: #4a6cf7;
+}
+
+.bookmark-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.bookmark-meta span {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bookmark-meta i {
+  color: #ff6f61;
+}
+
+.bookmark-content p {
+  color: #666;
+  margin: 0 0 1rem;
+  font-size: 0.95rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.remove-bookmark-button {
+  background-color: #ff6f61;
+  color: white;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.remove-bookmark-button:hover {
+  background-color: #e55a4d;
+}
+
+.no-bookmarks {
+  text-align: center;
+  color: #777;
+  font-style: italic;
+  font-size: 1.1rem;
+}
+
+.loading-spinner {
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #ff6f61;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 1s linear infinite;
+  margin: 1rem auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Modal styles (tương tự News.css) */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-content {
+  background-color: #fff;
+  border-radius: 12px;
+  max-width: 800px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  padding: 2rem;
+}
+
+.modal-close-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background-color: #ff6f61;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.modal-close-btn:hover {
+  background-color: #e55a4d;
+}
+
+.modal-close-btn i {
+  font-size: 1.5rem;
+}
+
+.modal-image {
+  width: 100%;
+  max-height: 300px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.modal-content h2 {
+  font-size: 1.8rem;
+  color: #333;
+  margin: 0 0 1rem;
+}
+
+.magazine-meta {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.magazine-meta span {
+  background-color: #f0f4ff;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+}
+
+.news-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.news-meta span {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.news-meta i {
+  color: #ff6f61;
+}
+
+.news-content-full {
+  color: #333;
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.news-tags {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 1rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.download-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: #28a745;
+  color: white;
+  text-decoration: none;
+}
+
+.download-button:hover {
+  background-color: #218838;
+  transform: translateY(-3px);
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .bookmarks-container {
+    padding: 1.5rem;
+  }
+
+  .bookmarks-container h1 {
+    font-size: clamp(1.6rem, 3vw, 1.8rem);
+  }
+
+  .bookmark-image {
+    height: 160px;
+  }
+
+  .modal-content {
+    padding: 1.5rem;
+    max-height: 95vh;
+  }
+
+  .modal-image {
+    max-height: 200px;
+  }
+
+  .modal-content h2 {
+    font-size: 1.6rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .bookmark-image {
+    height: 140px;
+  }
+
+  .bookmark-content h2 {
+    font-size: 1.3rem;
+  }
+
+  .bookmark-meta {
+    font-size: 0.85rem;
+  }
+
+  .modal-content {
+    padding: 1rem;
+  }
+
+  .modal-close-btn {
+    width: 35px;
+    height: 35px;
+  }
+
+  .modal-close-btn i {
+    font-size: 1.2rem;
+  }
+}

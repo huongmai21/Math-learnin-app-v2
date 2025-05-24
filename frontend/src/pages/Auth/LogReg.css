@@ -1,0 +1,688 @@
+/* frontend/src/components/auth/LogReg.css */
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap");
+
+:root {
+  --primary-color: #ff6f61;
+  --secondary-color: #ff9a8b;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.auth-wrapper {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  padding: 60px 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: url("https://res.cloudinary.com/duyqt3bpy/image/upload/v1746805174/background_yfh0i1.jpg")
+    no-repeat;
+  background-size: cover;
+  background-position: center;
+  filter: blur(10px);
+  z-index: 1;
+}
+
+.container {
+  position: absolute;
+  width: 1400px;
+  max-width: 1300px;
+  min-width: 900px;
+  min-height: 650px;
+  background: url("https://res.cloudinary.com/duyqt3bpy/image/upload/v1746805174/background_yfh0i1.jpg")
+    no-repeat;
+  background-size: cover;
+  background-position: center;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  z-index: 2;
+  display: flex;
+  overflow: hidden;
+}
+
+.container .content {
+  position: absolute;
+  width: 90%;
+  height: 90%; /* Khớp với container và .logreg-box */
+  padding: 70px;
+  color: #e4e4e4;
+  background: rgba(0, 0, 0, 0.215);
+  border-radius: 15px 15px 15px 15px;
+  display: flex;
+  flex-direction: column;
+  justify-content: first baseline;
+  /* align-items: normal; */
+}
+
+.content .logo {
+  font-family: "Inter", sans-serif;
+  font-size: 24px;
+  text-decoration: none;
+  font-weight: 700;
+  display: flex;
+  transition: transform 0.3s ease;
+  background: linear-gradient(135deg, #ffcccb, #ff6f61, #c42b1c);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-sci {
+  max-width: 50%;
+}
+
+.text-sci h2 {
+  font-size: 40px;
+  line-height: 1.2;
+  color: #ff6f61;
+}
+
+.text-sci h2 p {
+  font-size: 40px;
+  color: #ff6f61;
+  margin-bottom: 0px;
+}
+
+.text-sci h2 span {
+  font-size: 25px;
+  color: #ff9a8b;
+}
+
+.text-sci p {
+  font-size: 16px;
+  margin: 20px 0;
+  line-height: 1.5;
+}
+
+.social-icons {
+  margin-top: 30px;
+}
+
+.social-icons a i {
+  font-size: 22px;
+  color: #e4e4e4;
+  margin-right: 20px;
+  transition: 0.5s ease;
+}
+
+.social-icons a:hover i {
+  transform: scale(1.3);
+  background: linear-gradient(135deg, #ffcccb, #ff6f61, #c42b1c);
+}
+
+/* Logreg-box (bên phải) */
+.container .logreg-box {
+  position: absolute;
+  top: 40px;
+  right: 50px;
+  width: 38%;
+  height: 100%;
+  overflow: hidden;
+  z-index: 2;
+}
+
+.logreg-box .form-box {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  color: #e4e4e4;
+  padding: 20px;
+}
+
+.logreg-box .form-box.login {
+  transform: translateX(0);
+  transition: transform 0.7s ease;
+  transition-delay: 0.7s;
+}
+
+.logreg-box.active .form-box.login {
+  transform: translateX(100%);
+  transition-delay: 0s;
+}
+
+.logreg-box .form-box.register {
+  transform: translateX(100%);
+  transition: transform 0.5s ease;
+  transition-delay: 0s;
+}
+
+.logreg-box.active .form-box.register {
+  transform: translateX(0);
+  transition-delay: 0.7s;
+}
+
+.form-box.active {
+  display: block;
+}
+
+.form-box h2 {
+  font-size: 32px;
+  text-align: center;
+  color: #e4e4e4;
+  margin-bottom: 1.5rem;
+}
+
+.input-box {
+  position: relative;
+  margin-bottom: 2rem; /* Tăng khoảng cách để có chỗ cho lỗi */
+  width: 100%;
+}
+
+.input-box select,
+.input-box input {
+  width: 100%;
+  padding: 1rem 1rem 1rem 2.5rem;
+  height: 50px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 25px;
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  transition: border-color 0.3s ease;
+  color: #333;
+  appearance: none;
+}
+
+.input-box select:focus,
+.input-box input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 8px rgba(255, 111, 97, 0.6);
+}
+
+.input-box select {
+  background: rgba(255, 255, 255, 0.9)
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='5' viewBox='0 0 10 5'><path d='M0 0h10L5 5z' fill='%23333'/></svg>")
+    no-repeat right 15px center;
+}
+
+.input-box select + .icon,
+.input-box .icon {
+  position: absolute;
+  top: 50%;
+  right: 40px;
+  transform: translateY(-50%);
+  font-size: 20px;
+  color: #666;
+}
+
+.input-box .icon i {
+  display: inline-block !important;
+  color: #333 !important;
+}
+
+.remember-forgot {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #e4e4e4;
+  margin-bottom: 1.5rem;
+}
+
+.remember-forgot a,
+.remember-forgot button {
+  color: var(--primary-color);
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.remember-forgot a:hover,
+.remember-forgot button:hover {
+  text-decoration: underline;
+  color: var(--secondary-color);
+}
+
+.btn {
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  height: 50px;
+  background: linear-gradient(
+    45deg,
+    var(--primary-color),
+    var(--secondary-color)
+  );
+  color: white;
+  font-size: 1rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.btn:hover {
+  background: linear-gradient(
+    45deg,
+    var(--secondary-color),
+    var(--primary-color)
+  );
+}
+
+.login-register {
+  text-align: center;
+  margin-top: 1.5rem;
+  color: #e4e4e4;
+}
+
+.login-register a,
+.login-register button {
+  color: var(--primary-color);
+  font-weight: bold;
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.login-register a:hover,
+.login-register button:hover {
+  text-decoration: underline;
+  color: var(--secondary-color);
+}
+
+.error {
+  color: var(--primary-color);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0;
+  text-align: left;
+  max-width: 100%;
+  padding-left: 2.5rem; /* Căn trái để khớp với padding của input */
+  line-height: 1.2;
+  display: block; /* Đảm bảo lỗi hiển thị dưới dạng block */
+  position: relative;
+  z-index: 10; /* Đảm bảo lỗi hiển thị trên các thành phần khác */
+  border: 1px solid transparent; /* Thêm border để kiểm tra vị trí */
+}
+
+@media (max-width: 768px) {
+  .container {
+    width: 95%;
+    min-height: auto;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .container .content {
+    width: 100%;
+    padding: 20px;
+    min-height: 450px;
+    position: relative;
+    border-radius: 15px 15px 0 0;
+  }
+
+  .container .logreg-box {
+    width: 100%;
+    min-height: 450px;
+    position: relative;
+    top: 0;
+    right: 0;
+    border-radius: 0 0 15px 15px;
+  }
+
+  .logreg-box .form-box {
+    border-radius: 0 0 15px 15px;
+    position: relative;
+    transform: none;
+    padding: 20px;
+  }
+
+  .logreg-box .form-box.login,
+  .logreg-box.active .form-box.login,
+  .logreg-box .form-box.register,
+  .logreg-box.active .form-box.register {
+    transform: none;
+    transition: none;
+    display: none;
+  }
+
+  .logreg-box .form-box.active {
+    display: flex;
+  } /* frontend/src/components/auth/LogReg.css */
+  @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap");
+  @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap");
+
+  :root {
+    --primary-color: #ff6f61;
+    --secondary-color: #ff9a8b;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Cập nhật CSS cho form đăng nhập/đăng ký */
+  .auth-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(45deg, #2c3e50, #4a69bd, #6a89cc);
+    z-index: -1;
+  }
+
+  .container {
+    position: relative;
+    width: 90%;
+    max-width: 1200px;
+    height: 550px;
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 25px 45px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-right: 1px solid rgba(255, 255, 255, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+    display: flex;
+  }
+
+  .content {
+    position: relative;
+    width: 50%;
+    height: 100%;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 111, 97, 0.8),
+      rgba(255, 154, 139, 0.8)
+    );
+    border-radius: 10px 0 0 10px;
+  }
+
+  .logo {
+    font-size: 30px;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+  }
+
+  .logo i {
+    margin-right: 10px;
+    font-size: 32px;
+  }
+
+  .text-sci {
+    position: relative;
+    width: 100%;
+    color: #fff;
+  }
+
+  .text-sci h2 {
+    font-size: 40px;
+    line-height: 1;
+    margin-bottom: 20px;
+  }
+
+  .text-sci h2 span {
+    font-size: 25px;
+  }
+
+  .text-sci p {
+    font-size: 16px;
+    margin: 20px 0;
+  }
+
+  .social-icons {
+    display: flex;
+    margin-top: 40px;
+  }
+
+  .social-icons a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    margin-right: 10px;
+    text-decoration: none;
+    color: #fff;
+    font-size: 20px;
+    transition: 0.3s;
+  }
+
+  .social-icons a:hover {
+    background: #fff;
+    color: #ff6f61;
+  }
+
+  .logreg-box {
+    position: relative;
+    width: 50%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .form-box {
+    position: absolute;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 40px;
+    transition: 0.5s ease;
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  .form-box.active {
+    transform: translateX(0);
+    opacity: 1;
+    transition-delay: 0.25s;
+  }
+
+  .form-box h2 {
+    font-size: 32px;
+    color: #fff;
+    text-align: center;
+    margin-bottom: 30px;
+  }
+
+  .input-box {
+    position: relative;
+    width: 100%;
+    margin-bottom: 25px;
+  }
+
+  .input-box input,
+  .input-box select {
+    width: 100%;
+    height: 50px;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    outline: none;
+    border-radius: 40px;
+    padding: 0 45px 0 20px;
+    font-size: 16px;
+    color: #fff;
+    transition: 0.3s;
+  }
+
+  .input-box input::placeholder,
+  .input-box select {
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .input-box .icon {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 20px;
+    color: #fff;
+  }
+
+  .remember-forgot {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14.5px;
+    color: #fff;
+    margin-bottom: 15px;
+  }
+
+  .remember-forgot label {
+    display: flex;
+    align-items: center;
+  }
+
+  .remember-forgot label input {
+    margin-right: 5px;
+    accent-color: #ff6f61;
+  }
+
+  .remember-forgot button {
+    background: none;
+    border: none;
+    color: #fff;
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 14.5px;
+  }
+
+  .btn {
+    width: 100%;
+    height: 45px;
+    background: #ff6f61;
+    border: none;
+    outline: none;
+    border-radius: 40px;
+    box-shadow: 0 8px 10px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    font-size: 16px;
+    color: #fff;
+    font-weight: 600;
+    transition: 0.3s;
+  }
+
+  .btn:hover {
+    background: #ff9a8b;
+  }
+
+  .btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+  }
+
+  .login-register {
+    font-size: 14.5px;
+    color: #fff;
+    text-align: center;
+    margin-top: 25px;
+  }
+
+  .login-register p button {
+    background: none;
+    border: none;
+    color: #ff6f61;
+    text-decoration: underline;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14.5px;
+  }
+
+  .error {
+    color: #ffcccc;
+    font-size: 12px;
+    margin-top: 5px;
+    margin-left: 10px;
+  }
+
+  .role-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 15px center;
+    background-size: 20px;
+  }
+
+  @media (max-width: 768px) {
+    .container {
+      flex-direction: column;
+      height: auto;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .content {
+      width: 100%;
+      border-radius: 10px 10px 0 0;
+      padding: 20px;
+    }
+
+    .text-sci h2 {
+      font-size: 30px;
+    }
+
+    .text-sci h2 span {
+      font-size: 20px;
+    }
+
+    .logreg-box {
+      width: 100%;
+      height: auto;
+    }
+
+    .form-box {
+      position: relative;
+      padding: 20px;
+      transform: translateX(0);
+      opacity: 0;
+      display: none;
+    }
+
+    .form-box.active {
+      display: flex;
+      opacity: 1;
+    }
+  }
+
+  .error {
+    max-width: 100%;
+    padding-left: 2.5rem; /* Đảm bảo căn trái trên mobile */
+  }
+}

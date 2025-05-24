@@ -1,0 +1,205 @@
+.overview-tab {
+  width: 100%;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.profile-section {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.profile-section h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.profile-info-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 15px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.info-label {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-bottom: 5px;
+}
+
+.info-value {
+  font-size: 1rem;
+  color: #334155;
+}
+
+.activity-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.activity-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.activity-icon {
+  width: 32px;
+  height: 32px;
+  background-color: #f1f5f9;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #64748b;
+}
+
+.activity-content {
+  flex: 1;
+}
+
+.activity-content p {
+  margin: 0 0 5px;
+  color: #334155;
+}
+
+.activity-time {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.btn-primary,
+.btn-secondary {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background-color: #ff6f61;
+  color: white;
+  border: none;
+}
+
+.btn-primary:hover {
+  background-color: #e05c50;
+}
+
+.btn-secondary {
+  background-color: #f1f5f9;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+}
+
+.btn-secondary:hover {
+  background-color: #e2e8f0;
+}
+
+/* Contribution grid styling */
+.contribution-section {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.contribution-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.contribution-grid {
+  display: flex;
+  gap: 3px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+}
+
+.contribution-week {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.contribution-day {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background-color: #ebedf0;
+}
+
+.contribution-day.level-0 {
+  background-color: #ebedf0;
+}
+
+.contribution-day.level-1 {
+  background-color: #9be9a8;
+}
+
+.contribution-day.level-2 {
+  background-color: #40c463;
+}
+
+.contribution-day.level-3 {
+  background-color: #30a14e;
+}
+
+.contribution-day.level-4 {
+  background-color: #216e39;
+}
+
+.contribution-legend {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-top: 10px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .contribution-section {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}

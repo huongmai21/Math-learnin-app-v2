@@ -1,0 +1,52 @@
+/* Sửa lỗi trang bị ẩn dưới nav */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.content-container {
+  flex: 1;
+  padding-top: 70px; /* Điều chỉnh theo chiều cao của navbar */
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-left: 15px;
+  padding-right: 15px;
+}
+
+.with-sidebar {
+  display: flex;
+}
+
+.main-content {
+  flex: 1;
+  padding: 20px;
+}
+
+.sidebar-container {
+  width: 250px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .with-sidebar {
+    flex-direction: column;
+  }
+
+  .sidebar-container {
+    width: 100%;
+  }
+}
+
+/* Thêm vào App.css */
+main {
+  padding-top: 70px; /* Chiều cao của navbar + padding */
+  min-height: calc(100vh - 70px);
+}
+
+@media (max-width: 768px) {
+  main {
+    padding-top: 60px;
+  }
+}

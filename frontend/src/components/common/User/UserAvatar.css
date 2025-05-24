@@ -1,0 +1,44 @@
+.user-avatar-container {
+  position: relative;
+  display: inline-block;
+}
+
+.user-avatar-wrapper {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 20px;
+  transition: background-color 0.2s ease;
+}
+
+.user-avatar-wrapper:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.user-avatar {
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatar-small {
+  width: 30px;
+  height: 30px;
+}
+
+.avatar-medium {
+  width: 40px;
+  height: 40px;
+}
+
+.avatar-large {
+  width: 60px;
+  height: 60px;
+}
+
+.user-avatar-username {
+  margin-left: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
