@@ -21,6 +21,7 @@
     "better-react-mathjax": "^2.3.0",
     "chart.js": "^4.4.9",
     "cloudinary": "^2.6.1",
+    "csv-writer": "^1.6.0",
     "date-fns": "^4.1.0",
     "emoji-mart": "^5.6.0",
     "framer-motion": "^12.10.4",

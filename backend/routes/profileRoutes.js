@@ -1,29 +1,46 @@
-// backend/routes/profileRoutes.js
 const express = require("express");
 const router = express.Router();
 const {
-  getScores,
-  getBookmarks,
   getPosts,
-  getCourses,
-  addBookmark,
+  getPostById,
   createPost,
-  enrollCourse,
-  createCourse,
-  getParticipatedExams,
-  getAchievements,
-} = require("../controllers/profileController");
-const { authenticateToken, checkRole } = require("../middleware/authMiddleware");
+  updatePost,
+  deletePost,
+  likePost,
+  getPopularPosts,
+  searchPosts,
+  updatePostStatus,
+  updateAiResponse,
+  uploadPostImage,
+  uploadPostFile,
+} = require("../controllers/postsController");
+const { authenticateToken } = require("../middleware/authMiddleware");
+const multer = require("multer");
 
-router.get("/scores", authenticateToken, getScores);
-router.get("/library", authenticateToken, getBookmarks);
-router.get("/posts", authenticateToken, getPosts);
-router.get("/courses", authenticateToken, getCourses);
-router.get("/participated-exams", authenticateToken, getParticipatedExams); // Thêm route
-router.post("/library", authenticateToken, addBookmark);
-router.post("/posts", authenticateToken, createPost);
-router.post("/courses/enroll", authenticateToken, enrollCourse);
-router.post("/courses", authenticateToken, createCourse);
-router.get("/achievements", authenticateToken, getAchievements);
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/");
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
+});
+const upload = multer({ storage });
+
+router.get("/", getPosts);
+router.get("/popular", getPopularPosts);
+router.get("/search", searchPosts);
+router.get("/:id", getPostById);
+
+router.use(authenticateToken);
+
+router.post("/", createPost);
+router.put("/:id", updatePost);
+router.delete("/:id", deletePost);
+router.post("/:id/like", likePost);
+router.put("/:id/status", updatePostStatus);
+router.put("/:id/ai-response", updateAiResponse);
+router.post("/upload/image", upload.single("image"), uploadPostImage);
+router.post("/upload/file", upload.single("file"), uploadPostFile);
 
 module.exports = router;

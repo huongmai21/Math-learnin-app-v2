@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import {
@@ -9,7 +9,7 @@ import {
   downloadDocument,
   convertDocumentFormat,
 } from "../../services/documentService";
-import{
+import {
   addBookmark,
   removeBookmark,
   checkBookmarks,
@@ -30,6 +30,7 @@ const socket = io("http://localhost:5000", { transports: ["websocket"] });
 const DocumentDetail = () => {
   const { id } = useParams();
   const { user } = useSelector((state) => state.auth);
+  const navigate = useNavigate();
   const [document, setDocument] = useState(null);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [comments, setComments] = useState([]);
@@ -44,6 +45,14 @@ const DocumentDetail = () => {
   const commentsPerPage = 5;
   const mathJaxRef = useRef(null);
   const [mathJaxLoaded, setMathJaxLoaded] = useState(false);
+
+  const universitySubjects = [
+    { value: "advanced_math", label: "Toán Nâng Cao" },
+    { value: "calculus", label: "Giải Tích" },
+    { value: "algebra", label: "Đại Số" },
+    { value: "probability_statistics", label: "Xác Suất & Thống Kê" },
+    { value: "differential_equations", label: "Phương Trình Vi Phân" },
+  ];
 
   useEffect(() => {
     const loadDocument = async () => {
@@ -109,7 +118,7 @@ const DocumentDetail = () => {
 
   const handleDownload = async (format = "pdf") => {
     if (!user) {
-      toast.error("Vui lòng đăng nhập để t��i tài liệu!");
+      toast.error("Vui lòng đăng nhập để tải tài liệu!");
       return;
     }
     try {
@@ -244,7 +253,7 @@ const DocumentDetail = () => {
   const handleCopyContent = () => {
     if (document?.content) {
       navigator.clipboard.writeText(document.content);
-      toast.success("Đã sao chép nội dung!");
+      toast.success("Đã sao chép nội dung tài liệu!");
     } else {
       toast.error("Không có nội dung để sao chép!");
     }
@@ -282,7 +291,7 @@ const DocumentDetail = () => {
     }
     try {
       toast.info(
-        "Tính năng giải toán đang trong giai đoạn phát triển. Vui lòng thử lại sau!"
+        "Tính năng giải bài toán đang trong giai đoạn phát triển. Vui lòng thử lại sau!"
       );
     } catch (err) {
       toast.error(
@@ -297,6 +306,15 @@ const DocumentDetail = () => {
     localStorage.setItem(`notes_${id}`, newNotes);
   };
 
+  const handleEditDocument = () => {
+    navigate("/admin/documents", { state: { editDocumentId: id } });
+  };
+
+  const getSubjectLabel = (subject) => {
+    const found = universitySubjects.find((s) => s.value === subject);
+    return found ? found.label : "Không xác định";
+  };
+
   const indexOfLastComment = currentPageComments * commentsPerPage;
   const indexOfFirstComment = indexOfLastComment - commentsPerPage;
   const currentComments = comments.slice(
@@ -305,7 +323,15 @@ const DocumentDetail = () => {
   );
   const totalPagesComments = Math.ceil(comments.length / commentsPerPage);
 
-  if (isLoading) return <p className="loading-text">Đang tải tài liệu...</p>;
+  if (isLoading) {
+    return (
+      <div className="skeleton-loading">
+        <div className="skeleton skeleton-title"></div>
+        <div className="skeleton skeleton-meta"></div>
+        <div className="skeleton skeleton-content"></div>
+      </div>
+    );
+  }
   if (error) return <p className="error-message">{error}</p>;
   if (!document)
     return <p className="error-message">Không tìm thấy tài liệu!</p>;
@@ -320,6 +346,12 @@ const DocumentDetail = () => {
             document.description ||
             `Tài liệu ${document.title || "không có tiêu đề"} - FunMath.`
           }
+        />
+        <meta
+          name="keywords"
+          content={`toán học, ${document.educationLevel}, ${
+            document.subject ? getSubjectLabel(document.subject) : ""
+          }, ${document.tags?.join(", ") || ""}`}
         />
       </Helmet>
       <div className="doc-detail">
@@ -337,8 +369,16 @@ const DocumentDetail = () => {
               Lượt xem: {document.views || 0} | Lượt tải:{" "}
               {document.downloads || 0}
             </p>
+            {document.subject && (
+              <p>Môn học: {getSubjectLabel(document.subject)}</p>
+            )}
           </div>
           <div className="doc-actions">
+            {user?.role === "admin" && (
+              <button onClick={handleEditDocument} className="download-button">
+                Chỉnh sửa
+              </button>
+            )}
             <button onClick={togglePreview} className="preview-button">
               {showPreview ? "Ẩn xem trước" : "Xem trước"}
             </button>
@@ -375,7 +415,7 @@ const DocumentDetail = () => {
           <div className="pdf-preview">
             <iframe
               src={document.fileUrl}
-              title="PDF Preview"
+              title="Document Preview"
               className="pdf-iframe"
               loading="lazy"
               frameBorder="0"
@@ -401,7 +441,7 @@ const DocumentDetail = () => {
             className="comment-submit"
             style={{ marginTop: "10px" }}
           >
-            Giải bài tập
+            Giải bài toán
           </button>
         </div>
         {document.thumbnail && (
@@ -425,7 +465,7 @@ const DocumentDetail = () => {
           />
         </div>
         <Link to="/documents" className="back-link">
-          Quay lại danh sách
+          Quay lại danh sách tài liệu
         </Link>
         <div className="comments-section">
           <h3 className="comments-title">Bình luận</h3>
@@ -435,7 +475,7 @@ const DocumentDetail = () => {
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 className="comment-input"
-                placeholder="Viết bình luận của bạn..."
+                placeholder="Viết bình luận về tài liệu..."
               />
               <button type="submit" className="comment-submit">
                 Gửi

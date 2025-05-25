@@ -226,7 +226,7 @@ const CourseDetail = () => {
         </Link>
         <div className="course-header">
           <img
-            src={course.thumbnail || "/assets/images/default-course.jpg"}
+            src={course.thumbnail || "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png"}
             alt={course.title}
             className="course-thumbnail"
             onError={handleImageError}

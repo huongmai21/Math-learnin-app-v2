@@ -145,7 +145,7 @@
 
 .contribution-grid {
   display: flex;
-  gap: 3px;
+  gap: 4px;
   overflow-x: auto;
   padding-bottom: 10px;
 }
@@ -153,13 +153,13 @@
 .contribution-week {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
 .contribution-day {
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
   background-color: #ebedf0;
 }
 
@@ -192,6 +192,37 @@
   margin-top: 10px;
 }
 
+/* Edit Profile Form */
+.edit-profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.upload-preview {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.avatar-preview {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #ddd;
+}
+
+.cover-preview {
+  width: 100%;
+  max-width: 300px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid #ddd;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .overview-grid {
@@ -201,5 +232,10 @@
   .contribution-section {
     grid-column: 1;
     grid-row: auto;
+  }
+
+  .avatar-preview,
+  .cover-preview {
+    max-width: 100%;
   }
 }

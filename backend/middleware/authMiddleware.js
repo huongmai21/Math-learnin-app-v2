@@ -46,6 +46,8 @@ const authenticateToken = async (req, res, next) => {
 
 const checkRole = (...roles) => {
   return (req, res, next) => {
+    console.log("Current user role:", req.user.role);
+    console.log("Allowed roles:", roles);
     if (!req.user || !roles.includes(req.user.role)) {
       return next(new ErrorResponse("Không có quyền truy cập.", 403));
     }
@@ -53,16 +55,6 @@ const checkRole = (...roles) => {
   };
 };
 
-const logout = async (req, res) => {
-  const token = req.headers.authorization.replace("Bearer ", "");
-  if (redisConnected) {
-    try {
-      await client.setEx(`blacklist:${token}`, 7200, "2"); // Thu hồi token trong 2 giờ
-    } catch (err) {
-      console.error("Error adding token to Redis blacklist:", err);
-    }
-  }
-  res.status(200).json({ success: true, message: "Đăng xuất thành công" });
-};
 
-module.exports = { authenticateToken, checkRole, logout };
+
+module.exports = { authenticateToken, checkRole };

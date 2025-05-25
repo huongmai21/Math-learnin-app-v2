@@ -6,7 +6,7 @@ import searchService from "../../../services/searchService"
 import "./SearchBar.css"
 import { FaSearch } from "react-icons/fa"
 
-const SearchBar = ({ placeholder = "Tìm kiếm...", onSearch, className = "" }) => {
+const SearchBar = ({ placeholder = "Tìm kiếm...", onSearch, className = "", type = null }) => {
   const [searchTerm, setSearchTerm] = useState("")
   const [searchResults, setSearchResults] = useState([])
   const [showResults, setShowResults] = useState(false)
@@ -34,8 +34,10 @@ const SearchBar = ({ placeholder = "Tìm kiếm...", onSearch, className = "" })
       if (searchTerm.trim().length > 2) {
         setLoading(true)
         try {
-          const results = await searchService.searchResources(searchTerm)
-          setSearchResults(results)
+          const results = type
+            ? await searchService.searchByType(searchTerm, type)
+            : await searchService.searchResources(searchTerm)
+          setSearchResults(results.data?.documents || results.data || [])
           setShowResults(true)
         } catch (error) {
           console.error("Error searching:", error)
@@ -50,7 +52,7 @@ const SearchBar = ({ placeholder = "Tìm kiếm...", onSearch, className = "" })
     }, 500)
 
     return () => clearTimeout(delayDebounceFn)
-  }, [searchTerm])
+  }, [searchTerm, type])
 
   const handleInputChange = (e) => {
     setSearchTerm(e.target.value)
@@ -61,8 +63,9 @@ const SearchBar = ({ placeholder = "Tìm kiếm...", onSearch, className = "" })
     if (searchTerm.trim()) {
       if (onSearch) {
         onSearch(searchTerm)
+        setShowResults(false)
       } else {
-        navigate(`/search?q=${encodeURIComponent(searchTerm)}`)
+        navigate(`/search?q=${encodeURIComponent(searchTerm)}${type ? `&type=${type}` : ''}`)
       }
       setShowResults(false)
     }
@@ -70,7 +73,7 @@ const SearchBar = ({ placeholder = "Tìm kiếm...", onSearch, className = "" })
 
   const handleResultClick = (result) => {
     let url = ""
-    switch (result.type) {
+    switch (result.type || type) {
       case "course":
         url = `/courses/${result._id}`
         break
@@ -94,8 +97,8 @@ const SearchBar = ({ placeholder = "Tìm kiếm...", onSearch, className = "" })
     setSearchTerm("")
   }
 
-  const getResultIcon = (type) => {
-    switch (type) {
+  const getResultIcon = (resultType) => {
+    switch (resultType) {
       case "course":
         return "fa-graduation-cap"
       case "document":
@@ -111,8 +114,8 @@ const SearchBar = ({ placeholder = "Tìm kiếm...", onSearch, className = "" })
     }
   }
 
-  const getResultLabel = (type) => {
-    switch (type) {
+  const getResultLabel = (resultType) => {
+    switch (resultType) {
       case "course":
         return "Khóa học"
       case "document":
@@ -124,7 +127,7 @@ const SearchBar = ({ placeholder = "Tìm kiếm...", onSearch, className = "" })
       case "user":
         return "Người dùng"
       default:
-        return type
+        return resultType
     }
   }
 
@@ -159,12 +162,12 @@ const SearchBar = ({ placeholder = "Tìm kiếm...", onSearch, className = "" })
             <>
               {searchResults.map((result) => (
                 <div
-                  key={`${result.type}-${result._id}`}
+                  key={`${result.type || type}-${result._id}`}
                   className="search-result-item"
                   onClick={() => handleResultClick(result)}
                 >
                   <div className="result-icon">
-                    <i className={`fas ${getResultIcon(result.type)}`}></i>
+                    <i className={`fas ${getResultIcon(result.type || type)}`}></i>
                   </div>
                   <div className="result-content">
                     <div className="result-title">{result.title}</div>
@@ -175,12 +178,12 @@ const SearchBar = ({ placeholder = "Tìm kiếm...", onSearch, className = "" })
                           : result.description}
                       </div>
                     )}
-                    <div className="result-type">{getResultLabel(result.type)}</div>
+                    <div className="result-type">{getResultLabel(result.type || type)}</div>
                   </div>
                 </div>
               ))}
               <div className="search-all">
-                <button onClick={() => navigate(`/search?q=${encodeURIComponent(searchTerm)}`)}>
+                <button onClick={() => navigate(`/search?q=${encodeURIComponent(searchTerm)}${type ? `&type=${type}` : ''}`)}>
                   Xem tất cả kết quả
                 </button>
               </div>

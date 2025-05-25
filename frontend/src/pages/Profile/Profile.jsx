@@ -13,6 +13,7 @@ import {
   getPosts,
   getScores,
   getContributions,
+  updateUserProfile,
 } from "../../services/userService";
 import {
   getNotifications,
@@ -31,7 +32,6 @@ import ErrorBoundary from "../../components/ui/ErrorBoundary";
 import Skeleton from "../../components/ui/Skeleton";
 import "./Profile.css";
 
-// Lazy load tabs
 const OverviewTab = lazy(() => import("./OverviewTab"));
 const StatsTab = lazy(() => import("./StatsTab"));
 const LibraryTab = lazy(() => import("./LibraryTab"));
@@ -78,10 +78,24 @@ const Profile = () => {
     difficulty: "easy",
   });
   const [editingExam, setEditingExam] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   const navigate = useNavigate();
   const isCurrentUser = !id || (user && user._id === id);
   const profileId = id || (user ? user._id : null);
+
+  const handleUpdateProfile = async (updatedData) => {
+    try {
+      const response = await updateUserProfile(profileId, updatedData);
+      setProfile(response.user);
+      setIsEditing(false);
+      toast.success("Cập nhật hồ sơ thành công!");
+    } catch (err) {
+      toast.error(
+        "Không thể cập nhật hồ sơ: " + (err.message || "Vui lòng thử lại.")
+      );
+    }
+  };
 
   useEffect(() => {
     if (!profileId) {
@@ -92,8 +106,6 @@ const Profile = () => {
     const fetchProfileData = async () => {
       try {
         setLoading(true);
-
-        // Parallel fetching
         const [
           profileResponse,
           followersResponse,
@@ -141,7 +153,9 @@ const Profile = () => {
             : Promise.resolve({ exams: [] }),
         ]);
 
-        setProfile(profileResponse.user || profileResponse);
+        const userProfile =
+          profileResponse.data || profileResponse.user || profileResponse;
+        setProfile(userProfile);
         setFollowers(followersResponse.followers || []);
         setFollowing(followingResponse.following || []);
         setLibraryItems(libraryResponse.items || []);
@@ -154,7 +168,6 @@ const Profile = () => {
         setParticipatedExams(scoresResponse.exams || []);
         setContributions(contributionsResponse.contributions || []);
         setMyExams(examsResponse.exams || []);
-
         setError(null);
       } catch (err) {
         setError("Không thể tải thông tin hồ sơ. Vui lòng thử lại sau.");
@@ -169,6 +182,12 @@ const Profile = () => {
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
+    setIsEditing(false);
+  };
+
+  const handleEditProfileClick = () => {
+    setIsEditing(true);
+    setActiveTab("overview");
   };
 
   const handleMarkNotificationRead = async (notificationId) => {
@@ -292,7 +311,6 @@ const Profile = () => {
 
   const handleDeleteExam = async (examId) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa đề thi này?")) return;
-
     try {
       await deleteExam(examId);
       setMyExams(myExams.filter((exam) => exam._id !== examId));
@@ -321,7 +339,7 @@ const Profile = () => {
           <p>{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="retry-button"
+            className="btn-primary"
           >
             <i className="fas fa-sync-alt"></i> Thử lại
           </button>
@@ -339,7 +357,7 @@ const Profile = () => {
           <p>
             Hồ sơ người dùng không tồn tại hoặc bạn không có quyền truy cập.
           </p>
-          <button onClick={() => navigate("/")} className="home-button">
+          <button onClick={() => navigate("/")} className="btn-primary">
             <i className="fas fa-home"></i> Về trang chủ
           </button>
         </div>
@@ -411,7 +429,10 @@ const Profile = () => {
               </div>
             </div>
             {isCurrentUser ? (
-              <button className="edit-profile-btn">
+              <button
+                className="edit-profile-btn"
+                onClick={handleEditProfileClick}
+              >
                 <i className="fas fa-edit"></i> Chỉnh sửa hồ sơ
               </button>
             ) : (
@@ -438,6 +459,9 @@ const Profile = () => {
                   profile={profile}
                   isCurrentUser={isCurrentUser}
                   contributions={contributions}
+                  isEditing={isEditing}
+                  setIsEditing={setIsEditing}
+                  onUpdateProfile={handleUpdateProfile}
                 />
               )}
               {activeTab === "stats" && profile.role === "student" && (

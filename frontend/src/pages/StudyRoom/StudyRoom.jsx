@@ -66,12 +66,12 @@ const StudyRoom = () => {
   const videoCallRef = useRef(null)
   const whiteboardRef = useRef(null)
 
-  // Scroll to bottom of messages
+  
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
 
-  // Load rooms on initial render and when filters change
+  
   useEffect(() => {
     const loadRooms = async () => {
       if (activeTab === "all") {
@@ -106,7 +106,7 @@ const StudyRoom = () => {
     loadRooms()
   }, [activeTab, page, subject, search])
 
-  // Load room details when ID changes
+  
   useEffect(() => {
     if (id) {
       const loadRoomDetails = async () => {
@@ -117,7 +117,7 @@ const StudyRoom = () => {
           setMessages(response.data.messages || [])
           setParticipants(response.data.members || [])
 
-          // Join socket room
+          
           if (socket) {
             socket.emit("join_room", id)
           }
@@ -131,7 +131,7 @@ const StudyRoom = () => {
 
       loadRoomDetails()
 
-      // Cleanup when leaving the room
+      
       return () => {
         if (socket) {
           socket.emit("leave_room", id)
@@ -145,7 +145,7 @@ const StudyRoom = () => {
     }
   }, [id, navigate, socket])
 
-  // Socket event listeners
+  
   useEffect(() => {
     if (socket && currentRoom) {
       // Listen for new messages
@@ -153,7 +153,7 @@ const StudyRoom = () => {
         setMessages((prev) => [...prev, message])
       })
 
-      // Listen for user typing
+      
       socket.on("user_typing", (typingUser) => {
         if (typingUser.userId !== user._id) {
           setUsersTyping((prev) => {
@@ -163,18 +163,18 @@ const StudyRoom = () => {
             return prev
           })
 
-          // Remove typing indicator after 3 seconds
+          
           setTimeout(() => {
             setUsersTyping((prev) => prev.filter((u) => u.userId !== typingUser.userId))
           }, 3000)
         }
       })
 
-      // Listen for user joined
+      
       socket.on("user_joined", (joinedUser) => {
         toast.info(`${joinedUser.username} đã tham gia phòng học`)
 
-        // Refresh room details to get updated members list
+        
         getStudyRoomById(currentRoom._id)
           .then((response) => {
             setCurrentRoom(response.data)
@@ -185,11 +185,11 @@ const StudyRoom = () => {
           })
       })
 
-      // Listen for user left
+      
       socket.on("user_left", (leftUser) => {
         toast.info(`${leftUser.username} đã rời khỏi phòng học`)
 
-        // Refresh room details to get updated members list
+        
         getStudyRoomById(currentRoom._id)
           .then((response) => {
             setCurrentRoom(response.data)
@@ -200,7 +200,7 @@ const StudyRoom = () => {
           })
       })
 
-      // Listen for video call events
+      
       socket.on("video_call_started", () => {
         toast.info("Cuộc gọi video đã bắt đầu. Bạn có thể tham gia!")
       })
@@ -237,12 +237,12 @@ const StudyRoom = () => {
     }
   }, [socket, currentRoom, user, isVideoCallActive])
 
-  // Scroll to bottom when messages change
+ 
   useEffect(() => {
     scrollToBottom()
   }, [messages])
 
-  // Handle form input change
+  
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target
     setFormData({
@@ -251,7 +251,7 @@ const StudyRoom = () => {
     })
   }
 
-  // Handle create room form submission
+  
   const handleCreateRoom = async (e) => {
     e.preventDefault()
 
@@ -274,7 +274,7 @@ const StudyRoom = () => {
     }
   }
 
-  // Handle join room
+  
   const handleJoinRoom = async (roomId, isPrivate) => {
     if (isPrivate) {
       setSelectedRoomId(roomId)
@@ -290,7 +290,7 @@ const StudyRoom = () => {
     }
   }
 
-  // Handle join private room with password
+  
   const handleJoinPrivateRoom = async () => {
     try {
       await joinStudyRoom(selectedRoomId, passwordInput)
@@ -303,7 +303,7 @@ const StudyRoom = () => {
     }
   }
 
-  // Handle leave room
+  
   const handleLeaveRoom = async () => {
     if (!currentRoom) return
 
@@ -316,7 +316,7 @@ const StudyRoom = () => {
     }
   }
 
-  // Handle close room
+  
   const handleCloseRoom = async () => {
     if (!currentRoom) return
 
@@ -331,7 +331,7 @@ const StudyRoom = () => {
     }
   }
 
-  // Handle send message
+  
   const handleSendMessage = async (e) => {
     e.preventDefault()
 
@@ -342,26 +342,26 @@ const StudyRoom = () => {
       setNewMessage("")
       setShowEmojiPicker(false)
 
-      // Focus back on input
+      
       messageInputRef.current?.focus()
     } catch (error) {
       toast.error(error.message || "Không thể gửi tin nhắn")
     }
   }
 
-  // Handle typing notification
+  
   const handleTyping = () => {
     if (socket && currentRoom) {
       socket.emit("typing", { roomId: currentRoom._id })
     }
   }
 
-  // Handle emoji selection
+  
   const handleEmojiSelect = (emoji) => {
     setNewMessage((prev) => prev + emoji)
   }
 
-  // Handle start video call
+  
   const handleStartVideoCall = () => {
     if (socket && currentRoom) {
       setIsVideoCallActive(true)
@@ -371,7 +371,7 @@ const StudyRoom = () => {
     }
   }
 
-  // Handle end video call
+  
   const handleEndVideoCall = () => {
     if (socket && currentRoom && isVideoCallActive) {
       setIsVideoCallActive(false)
@@ -381,7 +381,7 @@ const StudyRoom = () => {
     }
   }
 
-  // Handle start whiteboard
+  
   const handleStartWhiteboard = () => {
     if (socket && currentRoom) {
       setIsWhiteboardActive(true)
@@ -391,19 +391,19 @@ const StudyRoom = () => {
     }
   }
 
-  // Handle whiteboard update
+  
   const handleWhiteboardUpdate = (data) => {
     if (socket && currentRoom) {
       socket.emit("update_whiteboard", { roomId: currentRoom._id, data })
     }
   }
 
-  // Handle switch interface
+  
   const handleSwitchInterface = (interfaceType) => {
     setActiveInterface(interfaceType)
   }
 
-  // Render room list
+  
   const renderRoomList = () => {
     const roomsToRender = activeTab === "all" ? rooms : myRooms
 

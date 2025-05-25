@@ -1,25 +1,65 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Link } from "react-router-dom"
-import { toast } from "react-toastify"
-import { unenrollCourse } from "../../services/courseService"
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { toast } from "react-toastify";
+import { unenrollCourse } from "../../services/courseService";
+import Skeleton from "../../components/ui/Skeleton";
 
 const CoursesTab = ({ profileData, courses = [], newCourse, setNewCourse, handleCreateCourse }) => {
-  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [thumbnailPreview, setThumbnailPreview] = useState(newCourse.thumbnail || "");
+
+  useEffect(() => {
+    const loadCloudinaryScript = () => {
+      const script = document.createElement("script");
+      script.src = "https://widget.cloudinary.com/v2.0/global/all.js";
+      script.async = true;
+      document.body.appendChild(script);
+      return () => document.body.removeChild(script);
+    };
+    loadCloudinaryScript();
+  }, []);
+
+  const openCloudinaryWidget = () => {
+    if (window.cloudinary) {
+      window.cloudinary
+        .createUploadWidget(
+          {
+            cloudName: "duyqt3bpy",
+            uploadPreset: "ml_default",
+            folder: "covers",
+            sources: ["local", "url", "camera"],
+            multiple: false,
+            resourceType: "image",
+          },
+          (error, result) => {
+            if (!error && result && result.event === "success") {
+              const url = result.info.secure_url;
+              setNewCourse((prev) => ({ ...prev, thumbnail: url }));
+              setThumbnailPreview(url);
+              toast.success("Đã tải lên thumbnail!");
+            } else if (error) {
+              toast.error("Lỗi tải lên ảnh: " + (error.message || "Vui lòng thử lại."));
+            }
+          }
+        )
+        .open();
+    } else {
+      toast.error("Không thể tải Cloudinary Widget. Vui lòng thử lại.");
+    }
+  };
 
   const handleUnenroll = async (courseId) => {
-    if (!window.confirm("Bạn có chắc chắn muốn hủy đăng ký khóa học này?")) return
-
+    if (!window.confirm("Bạn có chắc chắn muốn hủy đăng ký khóa học này?")) return;
     try {
-      await unenrollCourse(courseId)
-      toast.success("Đã hủy đăng ký khóa học!")
-      // Reload page to see changes
-      window.location.reload()
+      await unenrollCourse(courseId);
+      toast.success("Đã hủy đăng ký khóa học!");
+      window.location.reload();
     } catch (error) {
-      toast.error("Không thể hủy đăng ký: " + (error.message || "Vui lòng thử lại."))
+      toast.error("Không thể hủy đăng ký: " + (error.message || "Vui lòng thử lại."));
     }
-  }
+  };
 
   return (
     <div className="courses-tab">
@@ -57,6 +97,17 @@ const CoursesTab = ({ profileData, courses = [], newCourse, setNewCourse, handle
                 rows="4"
               ></textarea>
             </div>
+            <div className="form-group">
+              <label>Thumbnail</label>
+              <div className="upload-preview">
+                {thumbnailPreview && (
+                  <img src={thumbnailPreview} alt="Thumbnail Preview" className="thumbnail-preview" />
+                )}
+                <button type="button" className="btn-secondary" onClick={openCloudinaryWidget}>
+                  <i className="fas fa-upload"></i> Tải lên thumbnail
+                </button>
+              </div>
+            </div>
             <div className="form-row">
               <div className="form-group">
                 <label htmlFor="course-price">Giá (VND)</label>
@@ -74,7 +125,7 @@ const CoursesTab = ({ profileData, courses = [], newCourse, setNewCourse, handle
                 <select
                   id="course-public"
                   value={newCourse.isPublic ? "public" : "private"}
-                  onChange={(e) => setNewCourse({ ...newCourse, isPublic: e.target.value === "public" ? true : false })}
+                  onChange={(e) => setNewCourse({ ...newCourse, isPublic: e.target.value === "public" })}
                 >
                   <option value="public">Công khai</option>
                   <option value="private">Riêng tư</option>
@@ -110,8 +161,8 @@ const CoursesTab = ({ profileData, courses = [], newCourse, setNewCourse, handle
                         {course.status === "pending"
                           ? "Chờ duyệt"
                           : course.status === "approved"
-                            ? "Đã duyệt"
-                            : "Bị từ chối"}
+                          ? "Đã duyệt"
+                          : "Bị từ chối"}
                       </span>
                     </div>
                   )}
@@ -167,7 +218,7 @@ const CoursesTab = ({ profileData, courses = [], newCourse, setNewCourse, handle
         )}
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default CoursesTab
+export default CoursesTab;

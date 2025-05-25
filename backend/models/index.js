@@ -19,6 +19,7 @@ import Review from './Review.js';
 import Score from './Score';
 import Enrollment from "./Enrollment.js";
 import Bookmark from "./Bookmark.js";
+import Question from "./Question.js";
 
 export {
   User,
@@ -40,5 +41,6 @@ export {
   Review,
   Score,
   Bookmark,
-  Enrollment
+  Enrollment,
+  Question
 };

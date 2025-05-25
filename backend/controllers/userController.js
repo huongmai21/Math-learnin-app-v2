@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const UserActivity = require("../models/UserActivity");
 const Follow = require("../models/Follow");
+const Notification = require("../models/Notification"); // Thêm import
 const asyncHandler = require("../middleware/asyncHandler");
 const ErrorResponse = require("../utils/errorResponse");
 const cloudinary = require("../config/cloudinary");
@@ -12,12 +13,16 @@ exports.getProfile = asyncHandler(async (req, res, next) => {
   if (!user) {
     return next(new ErrorResponse("Người dùng không tồn tại", 404));
   }
-  res.json(user);
+  res.status(200).json({ success: true, data: user });
 });
 
 exports.getUserActivity = asyncHandler(async (req, res, next) => {
   const userId = req.user.id;
-  const year = req.query.year || new Date().getFullYear();
+  const year = parseInt(req.query.year) || new Date().getFullYear();
+
+  if (isNaN(year) || year < 2000 || year > new Date().getFullYear()) {
+    return next(new ErrorResponse("Năm không hợp lệ", 400));
+  }
 
   const activities = await UserActivity.find({
     userId,
@@ -42,32 +47,27 @@ exports.getUserActivity = asyncHandler(async (req, res, next) => {
   }
 
   res.status(200).json({
-    activity: fullActivity,
-    total: activities.reduce((sum, act) => sum + (act.count || 0), 0),
+    success: true,
+    data: {
+      activity: fullActivity,
+      total: activities.reduce((sum, act) => sum + (act.count || 0), 0),
+    },
   });
 });
 
 exports.updateProfile = asyncHandler(async (req, res, next) => {
-  const { username, email, bio } = req.body;
+  const { username, email, bio, avatar } = req.body;
   const user = await User.findById(req.user.id);
 
-  if (!user) {
-    return next(new ErrorResponse("Người dùng không tồn tại", 404));
-  }
+  if (!user) return next(new ErrorResponse("Người dùng không tồn tại", 404));
 
   let avatarUrl = user.avatar;
   if (req.file) {
     try {
-      const result = await cloudinary.uploader.upload(req.file.buffer, {
+      const result = await cloudinary.uploader.upload(req.file.path, {
         folder: "avatar",
         transformation: [
-          {
-            width: 100,
-            height: 100,
-            crop: "fill",
-            quality: "auto",
-            fetch_format: "auto",
-          },
+          { width: 100, height: 100, crop: "fill", quality: "auto" },
         ],
       });
       avatarUrl = result.secure_url;
@@ -82,12 +82,15 @@ exports.updateProfile = asyncHandler(async (req, res, next) => {
   user.bio = bio || user.bio;
 
   await user.save();
-
   res.status(200).json({ success: true, data: user });
 });
 
 exports.changePassword = asyncHandler(async (req, res, next) => {
   const { currentPassword, newPassword, confirmPassword } = req.body;
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    return next(new ErrorResponse("Thiếu thông tin cần thiết", 400));
+  }
+
   const user = await User.findById(req.user.id).select("+password");
 
   if (!user) {
@@ -119,6 +122,10 @@ exports.followUser = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse("Người dùng không tồn tại", 404));
   }
 
+  if (userToFollow._id.equals(currentUser._id)) {
+    return next(new ErrorResponse("Không thể tự theo dõi chính mình", 400));
+  }
+
   const existingFollow = await Follow.findOne({
     followerId: currentUser._id,
     followingId: userToFollow._id,
@@ -133,25 +140,27 @@ exports.followUser = asyncHandler(async (req, res, next) => {
   });
 
   const io = req.app.get("io");
-  const notification = await Notification.create({
-    recipient: userToFollow._id,
-    sender: currentUser._id,
-    type: "system",
-    title: "Người theo dõi mới",
-    message: `${currentUser.username} đã theo dõi bạn.`,
-    link: `/users/profile/${currentUser._id}`,
-    relatedModel: "User",
-    relatedId: currentUser._id,
-  });
-  io.to(userToFollow._id.toString()).emit("newNotification", {
-    _id: notification._id,
-    title: notification.title,
-    message: notification.message,
-    link: notification.link,
-    createdAt: notification.createdAt,
-  });
+  if (io) {
+    const notification = await Notification.create({
+      recipient: userToFollow._id,
+      sender: currentUser._id,
+      type: "system",
+      title: "Người theo dõi mới",
+      message: `${currentUser.username} đã theo dõi bạn.`,
+      link: `/users/profile/${currentUser._id}`,
+      relatedModel: "User",
+      relatedId: currentUser._id,
+    });
+    io.to(userToFollow._id.toString()).emit("newNotification", {
+      _id: notification._id,
+      title: notification.title,
+      message: notification.message,
+      link: notification.link,
+      createdAt: notification.createdAt,
+    });
+  }
 
-  res.json({ message: "Theo dõi thành công" });
+  res.status(200).json({ success: true, message: "Theo dõi thành công" });
 });
 
 exports.unfollowUser = asyncHandler(async (req, res, next) => {
@@ -161,12 +170,16 @@ exports.unfollowUser = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse("Người dùng không tồn tại", 404));
   }
 
-  await Follow.deleteOne({
+  const result = await Follow.deleteOne({
     followerId: currentUser._id,
     followingId: userToUnfollow._id,
   });
 
-  res.json({ message: "Unfollowed successfully" });
+  if (result.deletedCount === 0) {
+    return next(new ErrorResponse("Bạn chưa theo dõi người dùng này", 400));
+  }
+
+  res.status(200).json({ success: true, message: "Hủy theo dõi thành công" });
 });
 
 exports.getFollowers = asyncHandler(async (req, res, next) => {
@@ -174,7 +187,10 @@ exports.getFollowers = asyncHandler(async (req, res, next) => {
     "followerId",
     "username avatar bio"
   );
-  res.json(followers.map((f) => f.followerId));
+  res.status(200).json({
+    success: true,
+    data: followers.map((f) => f.followerId) || [],
+  });
 });
 
 exports.getFollowing = asyncHandler(async (req, res, next) => {
@@ -182,7 +198,10 @@ exports.getFollowing = asyncHandler(async (req, res, next) => {
     "followingId",
     "username avatar bio"
   );
-  res.json(following.map((f) => f.followingId));
+  res.status(200).json({
+    success: true,
+    data: following.map((f) => f.followingId) || [],
+  });
 });
 
 exports.getUserSuggestions = asyncHandler(async (req, res, next) => {
@@ -195,7 +214,7 @@ exports.getUserSuggestions = asyncHandler(async (req, res, next) => {
   })
     .select("username avatar bio")
     .limit(5);
-  res.json({ data: users });
+  res.status(200).json({ success: true, data: users || [] });
 });
 
 exports.getRecentActivities = asyncHandler(async (req, res, next) => {
@@ -205,5 +224,5 @@ exports.getRecentActivities = asyncHandler(async (req, res, next) => {
     .limit(parseInt(limit))
     .populate("userId", "username");
 
-  res.status(200).json({ success: true, data: activities });
+  res.status(200).json({ success: true, data: activities || [] });
 });

@@ -132,7 +132,7 @@ exports.login = asyncHandler(async (req, res, next) => {
 
 exports.getMe = asyncHandler(async (req, res, next) => {
   const user = await User.findById(req.user.id);
-  console.log("User fetched in getMe:", user); // Debugy
+  console.log("User fetched in getMe:", user); // Debug
   res.status(200).json({ success: true, data: user });
 });
 
@@ -196,3 +196,19 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
     .status(200)
     .json({ success: true, message: "Đặt lại mật khẩu thành công" });
 });
+
+exports.logout = async (req, res) => {
+  res.status(200).json({ success: true, message: "Đăng xuất thành công" });
+};
+
+// exports. logout = async (req, res) => {
+//   const token = req.headers.authorization.replace("Bearer ", "");
+//   if (redisConnected) {
+//     try {
+//       await client.setEx(`blacklist:${token}`, 7200, "2"); // Thu hồi token trong 2 giờ
+//     } catch (err) {
+//       console.error("Error adding token to Redis blacklist:", err);
+//     }
+//   }
+//   res.status(200).json({ success: true, message: "Đăng xuất thành công" });
+// };

@@ -7,7 +7,6 @@ export const getStudyRooms = async (params = {}) => {
     return response.data
   } catch (error) {
     console.error("Error fetching study rooms:", error)
-    // Return empty data structure to prevent UI errors
     return { data: [], totalPages: 0 }
   }
 }

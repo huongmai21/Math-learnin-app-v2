@@ -50,15 +50,15 @@ export const resetPassword = async (token, password) => {
   }
 }
 
-export const updateProfile = async (userData) => {
-  try {
-    const response = await api.put("/users/profile", userData)
-    return response.data
-  } catch (error) {
-    console.error("Update profile error:", error)
-    throw new Error(error.response?.data?.message || "Không thể cập nhật hồ sơ")
-  }
-}
+// export const updateProfile = async (userData) => {
+//   try {
+//     const response = await api.put("/users/profile", userData)
+//     return response.data
+//   } catch (error) {
+//     console.error("Update profile error:", error)
+//     throw new Error(error.response?.data?.message || "Không thể cập nhật hồ sơ")
+//   }
+// }
 
 export const changePassword = async (passwordData) => {
   try {

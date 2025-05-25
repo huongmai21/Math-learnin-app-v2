@@ -74,7 +74,6 @@ exports.getFeaturedNews = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching featured news:", error);
-    // Trả về mảng rỗng thay vì lỗi 500
     res.status(200).json({
       success: true,
       count: 0,

@@ -7,6 +7,7 @@ import { io } from "socket.io-client";
 import { Helmet } from "react-helmet";
 import { motion } from "framer-motion";
 import SearchBar from "../../components/common/SearchBar/SearchBar";
+import searchService from "../../services/searchService";
 import { getNewsPress } from "../../services/newsService";
 import { getCoursesPress } from "../../services/courseService";
 import api from "../../services/api";
@@ -132,6 +133,15 @@ const HomePage = () => {
       "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746717237/default-avatar_ysrrdy.png";
   };
 
+  const handleSearch = async (searchTerm) => {
+    try {
+      const results = await searchService.searchAll(searchTerm);
+      navigate(`/search?q=${encodeURIComponent(searchTerm)}`, { state: { results } });
+    } catch (error) {
+      toast.error("Không thể tìm kiếm. Vui lòng thử lại!");
+    }
+  };
+
   return (
     <div className="homepage">
       <Helmet>
@@ -147,7 +157,10 @@ const HomePage = () => {
         <meta name="author" content="FunMath Team" />
       </Helmet>
 
-      <SearchBar />
+      <SearchBar
+        placeholder="Tìm kiếm khóa học, tài liệu, tin tức..."
+        onSearch={handleSearch}
+      />
 
       <motion.section
         className="banner"

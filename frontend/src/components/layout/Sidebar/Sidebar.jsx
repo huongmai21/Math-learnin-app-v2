@@ -1,66 +1,84 @@
-"use client";
+// frontend/src/components/layout/Sidebar/Sidebar.jsx
+import React from "react";
+import { Tooltip } from "react-tooltip";
 import "./Sidebar.css";
 
-const Sidebar = ({ activeTab, onTabChange, user, tabs = "default" }) => {
-  // Xác định danh sách tab dựa trên loại sidebar
-  const getTabList = () => {
-    if (tabs === "profile") {
-      const tabList = [
-        { id: "overview", icon: "fa-user", label: "Tổng quan" },
-        { id: "library", icon: "fa-book", label: "Thư viện" },
-        { id: "friends", icon: "fa-users", label: "Bạn bè" },
-        { id: "posts", icon: "fa-comments", label: "Học tập" },
-        { id: "courses", icon: "fa-graduation-cap", label: "Khóa học" },
-      ];
+const Sidebar = ({ activeTab, onTabChange, user, tabs }) => {
+  const defaultTabs = [
+    { id: "exercise", icon: "fa-solid fa-pen", label: "Góc giải bài tập" },
+    { id: "study", icon: "fa-solid fa-book", label: "Góc học tập" },
+    { id: "share", icon: "fa-solid fa-share", label: "Góc chia sẻ" },
+    { id: "bookmarks", icon: "fa-solid fa-bookmark", label: "Bookmarks" },
+    { id: "notifications", icon: "fa-solid fa-bell", label: "Thông báo" },
+  ];
 
-      // Thêm tab thống kê nếu là học sinh
-      if (user?.role === "student") {
-        tabList.splice(1, 0, {
-          id: "stats",
-          icon: "fa-chart-line",
-          label: "Thống kê",
-        });
-      }
+  const profileTabs = [
+    { id: "overview", icon: "fa-solid fa-id-card", label: "Profile" },
+    ...(user?.role === "student"
+      ? [{ id: "stats", icon: "fa-solid fa-chart-line", label: "Thống kê" }]
+      : []),
+    { id: "friends", icon: "fa-solid fa-users", label: "Bạn bè" },
+    { id: "library", icon: "fa-solid fa-book-bookmark", label: "Bookmarks" },
+    { id: "posts", icon: "fa-solid fa-paper-plane", label: "Bài đăng" },
+    ...(user?.role !== "admin"
+      ? [
+          {
+            id: "courses",
+            icon: "fa-solid fa-graduation-cap",
+            label: "Khóa học",
+          },
+        ]
+      : []),
+    ...(user?.role === "teacher"
+      ? [
+          {
+            id: "create-exam",
+            icon: "fa-solid fa-ranking-star",
+            label: "Tạo đề thi",
+          },
+        ]
+      : []),
+  ];
 
-      // Thêm tab tạo đề thi nếu là giáo viên
-      if (user?.role === "teacher") {
-        tabList.push({
-          id: "create-exam",
-          icon: "fa-file-alt",
-          label: "Tạo đề thi",
-        });
-      }
+  const adminTabs = [
+    { id: "stats", icon: "fa-solid fa-chart-line", label: "Thống kê" },
+    { id: "users", icon: "fa-solid fa-users", label: "Người dùng" },
+    { id: "library", icon: "fa-solid fa-book", label: "Tài liệu" },
+    { id: "news", icon: "fa-solid fa-newspaper", label: "Tin tức" },
+    { id: "course", icon: "fa-solid fa-film", label: "Khóa học" },
+    { id: "exams", icon: "fa-solid fa-ranking-star", label: "Đề thi" },
+  ];
 
-      return tabList;
-    }
-
-    // Sidebar mặc định
-    return [
-      { id: "dashboard", icon: "fa-tachometer-alt", label: "Tổng quan" },
-      { id: "courses", icon: "fa-graduation-cap", label: "Khóa học" },
-      { id: "documents", icon: "fa-book", label: "Tài liệu" },
-      { id: "exams", icon: "fa-file-alt", label: "Đề thi" },
-      { id: "forum", icon: "fa-comments", label: "Diễn đàn" },
-      { id: "settings", icon: "fa-cog", label: "Cài đặt" },
-    ];
-  };
-
-  const tabList = getTabList();
+  const tabList =
+    tabs === "profile"
+      ? profileTabs
+      : tabs === "admin"
+      ? adminTabs
+      : defaultTabs;
 
   return (
     <div className="sidebar">
-      <ul className="sidebar-menu">
+      <ul>
         {tabList.map((tab) => (
           <li
             key={tab.id}
-            className={`sidebar-item ${activeTab === tab.id ? "active" : ""}`}
+            className={activeTab === tab.id ? "active" : ""}
             onClick={() => onTabChange(tab.id)}
+            data-tooltip-id={`${tab.id}-tab`}
+            data-tooltip-content={tab.label}
           >
-            <i className={`fas ${tab.icon}`}></i>
-            <span>{tab.label}</span>
+            <i className={tab.icon}></i>
           </li>
         ))}
       </ul>
+      {tabList.map((tab) => (
+        <Tooltip
+          key={tab.id}
+          id={`${tab.id}-tab`}
+          place="right"
+          className="z-[1000] bg-[#333] text-white text-sm rounded-md px-2 py-1"
+        />
+      ))}
     </div>
   );
 };

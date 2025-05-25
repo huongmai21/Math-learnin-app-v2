@@ -54,7 +54,7 @@ const StudyCorner = () => {
   const [subject, setSubject] = useState("");
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
-  const [searchInput, setSearchInput] = useState(""); // Thêm state để quản lý giá trị input
+  const [searchInput, setSearchInput] = useState("");
   const [searchImage, setSearchImage] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [commentText, setCommentText] = useState("");
@@ -75,11 +75,15 @@ const StudyCorner = () => {
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
 
-  // Khởi tạo WebSocket
+  const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+  const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+  const MAX_FILES = 5; // Giới hạn số lượng file
+
   useEffect(() => {
     if (user) {
       socketRef.current = io("http://localhost:5000", {
         transports: ["websocket"],
+        reconnectionAttempts: 5,
       });
 
       socketRef.current.on("connect", () => {
@@ -87,12 +91,17 @@ const StudyCorner = () => {
         socketRef.current.emit("join", user._id);
       });
 
+      socketRef.current.on("connect_error", (error) => {
+        console.error("WebSocket connection error:", error);
+        toast.error("Không thể kết nối đến WebSocket");
+      });
+
       socketRef.current.on("bookmark_notification", ({ message }) => {
         toast.info(message);
       });
 
       return () => {
-        socketRef.current.disconnect();
+        socketRef.current?.disconnect();
       };
     }
   }, [user]);
@@ -103,7 +112,6 @@ const StudyCorner = () => {
     }
   }, [tab]);
 
-  // Kiểm tra trạng thái bookmark
   const loadBookmarkedPostIds = useCallback(
     async (posts) => {
       if (!user || !posts || posts.length === 0) return;
@@ -114,18 +122,17 @@ const StudyCorner = () => {
         setBookmarkedPostIds(response.data || []);
       } catch (error) {
         console.error("Error checking bookmarks:", error);
+        toast.error("Không thể kiểm tra bookmark");
       }
     },
     [user]
   );
 
-  // Tải danh sách bài đăng
   useEffect(() => {
     const loadPosts = async () => {
       setLoading(true);
       try {
         let response;
-
         switch (activeTab) {
           case "exercises":
             response = await getPosts({
@@ -168,14 +175,19 @@ const StudyCorner = () => {
             response = await getPosts({ page, search });
         }
 
-        setPosts(response.data);
-        setTotalPages(response.totalPages);
+        if (!response.data) {
+          throw new Error("Dữ liệu bài đăng không hợp lệ");
+        }
 
+        setPosts(response.data);
+        setTotalPages(response.totalPages || 1);
         if (activeTab !== "bookmarks") {
           await loadBookmarkedPostIds(response.data);
         }
       } catch (error) {
         toast.error(error.message || "Không thể tải danh sách bài đăng");
+        setPosts([]);
+        setTotalPages(1);
       } finally {
         setLoading(false);
       }
@@ -195,7 +207,6 @@ const StudyCorner = () => {
     loadBookmarkedPostIds,
   ]);
 
-  // Tải chi tiết bài đăng
   useEffect(() => {
     if (id) {
       const loadPostDetails = async () => {
@@ -233,6 +244,7 @@ const StudyCorner = () => {
       setComments(response.data);
     } catch (error) {
       console.error("Error loading comments:", error);
+      toast.error("Không thể tải bình luận");
     } finally {
       setCommentsLoading(false);
     }
@@ -250,10 +262,28 @@ const StudyCorner = () => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
 
-    const uploadPromises = files.map(async (file) => {
+    if (files.length + formData.images.length > MAX_FILES) {
+      toast.error(`Bạn chỉ có thể tải lên tối đa ${MAX_FILES} hình ảnh`);
+      return;
+    }
+
+    const validFiles = files.filter((file) => {
+      if (file.size > MAX_IMAGE_SIZE) {
+        toast.error(`Hình ảnh ${file.name} vượt quá 10MB`);
+        return false;
+      }
+      if (!file.type.startsWith("image/")) {
+        toast.error(`File ${file.name} không phải hình ảnh`);
+        return false;
+      }
+      return true;
+    });
+
+    setCreatePostLoading(true);
+    const uploadPromises = validFiles.map(async (file) => {
       try {
         const response = await uploadPostImage(file);
-        return response.url;
+        return response.data.url;
       } catch (error) {
         toast.error(`Không thể tải lên hình ảnh: ${file.name}`);
         return null;
@@ -267,35 +297,55 @@ const StudyCorner = () => {
       ...formData,
       images: [...formData.images, ...validUrls],
     });
+    setCreatePostLoading(false);
   };
 
   const handleFileUpload = async (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length === 0) return;
+  const files = Array.from(e.target.files);
+  if (files.length === 0) return;
 
-    const uploadPromises = files.map(async (file) => {
-      try {
-        const response = await uploadPostFile(file);
-        return response;
-      } catch (error) {
-        toast.error(`Không thể tải lên file: ${file.name}`);
-        return null;
-      }
-    });
+  if (files.length + formData.files.length > MAX_FILES) {
+    toast.error(`Bạn chỉ có thể tải lên tối đa ${MAX_FILES} tệp`);
+    return;
+  }
 
-    const uploadedFiles = await Promise.all(uploadPromises);
-    const validFiles = uploadedFiles.filter(Boolean);
+  const filteredFiles = files.filter((file) => {
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error(`Tệp ${file.name} vượt quá 20MB`);
+      return false;
+    }
+    return true;
+  });
 
-    setFormData({
-      ...formData,
-      files: [...formData.files, ...validFiles],
-    });
-  };
+  setCreatePostLoading(true);
+  const uploadPromises = filteredFiles.map(async (file) => {
+    try {
+      const response = await uploadPostFile(file);
+      return response.data;
+    } catch (error) {
+      toast.error(`Không thể tải lên tệp: ${file.name}`);
+      return null;
+    }
+  });
+
+  const uploadedFiles = await Promise.all(uploadPromises);
+  const successfulUploads = uploadedFiles.filter(Boolean);
+
+  setFormData({
+    ...formData,
+    files: [...formData.files, ...successfulUploads],
+  });
+  setCreatePostLoading(false);
+};
 
   const handleCreatePost = async (e) => {
     e.preventDefault();
-    setCreatePostLoading(true);
+    if (!formData.title.trim() || !formData.content.trim()) {
+      toast.error("Tiêu đề và nội dung không được để trống");
+      return;
+    }
 
+    setCreatePostLoading(true);
     try {
       const tagsArray = formData.tags
         .split(",")
@@ -305,6 +355,12 @@ const StudyCorner = () => {
       const postData = {
         ...formData,
         tags: tagsArray,
+        category:
+          activeTab === "exercises"
+            ? "exercise"
+            : activeTab === "learning"
+            ? "question"
+            : "share",
       };
 
       const response = await createPost(postData);
@@ -345,18 +401,18 @@ const StudyCorner = () => {
       if (currentPost && currentPost._id === postId) {
         setCurrentPost({
           ...currentPost,
-          likes: response.likes,
+          likes: response.data.likes,
         });
       } else {
         setPosts(
           posts.map((post) =>
-            post._id === postId ? { ...post, likes: response.likes } : post
+            post._id === postId ? { ...post, likes: response.data.likes } : post
           )
         );
       }
 
       toast.success(
-        response.isLiked ? "Đã thích bài đăng" : "Đã bỏ thích bài đăng"
+        response.data.isLiked ? "Đã thích bài đăng" : "Đã bỏ thích bài đăng"
       );
     } catch (error) {
       toast.error(error.message || "Không thể thích bài đăng");
@@ -401,6 +457,11 @@ const StudyCorner = () => {
   };
 
   const handleDeletePost = async (postId) => {
+    if (!user) {
+      toast.error("Vui lòng đăng nhập để xóa bài đăng");
+      return;
+    }
+
     if (window.confirm("Bạn có chắc chắn muốn xóa bài đăng này?")) {
       try {
         await deletePost(postId);
@@ -424,12 +485,14 @@ const StudyCorner = () => {
       if (currentPost && currentPost._id === postId) {
         setCurrentPost({
           ...currentPost,
-          status: response.status,
+          status: response.data.status,
         });
       } else {
         setPosts(
           posts.map((post) =>
-            post._id === postId ? { ...post, status: response.status } : post
+            post._id === postId
+              ? { ...post, status: response.data.status }
+              : post
           )
         );
       }
@@ -509,7 +572,7 @@ const StudyCorner = () => {
       setAiResponse(aiResult.answer);
       setCurrentPost({
         ...currentPost,
-        aiResponse: response.aiResponse,
+        aiResponse: response.data.aiResponse,
         isAiAnswered: true,
       });
 
@@ -532,7 +595,7 @@ const StudyCorner = () => {
 
   const handleSearchChange = (e) => {
     const value = e.target.value;
-    setSearchInput(value); // Cập nhật giá trị input ngay lập tức
+    setSearchInput(value);
     debouncedSearch(value);
   };
 
@@ -662,7 +725,7 @@ const StudyCorner = () => {
                 <i className="fas fa-comment"></i> {post.commentCount || 0}
               </span>
               <span>
-                <i className="fas fa-heart"></i>{" "}
+                <i className="fas fa-heart"></i>
                 {post.likes ? post.likes.length : 0}
               </span>
             </div>
@@ -702,18 +765,16 @@ const StudyCorner = () => {
 
               {user &&
                 (post.userId?._id === user._id || user.role === "admin") && (
-                  <>
-                    <button
-                      className="action-button delete"
-                      onClick={() => handleDeletePost(post._id)}
-                      data-tooltip-id={`tooltip-delete-${post._id}`}
-                      data-tooltip-content="Xóa bài đăng"
-                    >
-                      <i className="fas fa-trash"></i>
-                    </button>
-                    <Tooltip id={`tooltip-delete-${post._id}`} />
-                  </>
+                  <button
+                    className="action-button delete"
+                    onClick={() => handleDeletePost(post._id)}
+                    data-tooltip-id={`tooltip-delete-${post._id}`}
+                    data-tooltip-content="Xóa bài đăng"
+                  >
+                    <i className="fas fa-trash"></i>
+                  </button>
                 )}
+              <Tooltip id={`tooltip-delete-${post._id}`} />
             </div>
           </div>
         </div>
@@ -721,761 +782,650 @@ const StudyCorner = () => {
     },
     [
       posts,
-      user,
       bookmarkedPostIds,
       bookmarkLoading,
+      user,
       handleLikePost,
       handleBookmarkPost,
       handleDeletePost,
     ]
   );
 
-  const renderPostList = useCallback(() => {
-    if (loading && posts.length === 0) {
-      return <div className="loading-spinner">Đang tải...</div>;
-    }
-
-    if (posts.length === 0) {
-      return (
-        <div className="empty-state">
-          <p>Không có bài đăng nào.</p>
-          {user && (
-            <button
-              className="btn-primary"
-              onClick={() => setShowCreateForm(true)}
-            >
-              Tạo bài đăng mới
-            </button>
-          )}
-        </div>
-      );
-    }
-
+  if (loading && !currentPost) {
     return (
-      <div className="post-list" style={{ height: "600px" }}>
-        <AutoSizer>
-          {({ height, width }) => (
-            <List
-              height={height}
-              width={width}
-              itemCount={posts.length}
-              itemSize={300}
-            >
-              {PostRow}
-            </List>
-          )}
-        </AutoSizer>
+      <div className="loading-spinner">
+        <div className="spinner"></div> Đang tải...
       </div>
     );
-  }, [loading, posts, user, PostRow]);
+  }
 
-  const renderPostDetail = useCallback(() => {
-    if (!currentPost) return null;
-
-    const isAuthor = user && currentPost.userId?._id === user._id;
-    const isLiked =
-      user && currentPost.likes && currentPost.likes.includes(user._id);
-    const isBookmarked = bookmarkedPostIds.includes(currentPost._id);
-
+  if (!user && !id) {
     return (
-      <div className="post-detail">
-        <div className="post-detail-header">
-          <div className="post-author">
-            <img
-              src={
-                currentPost.userId?.avatar ||
-                "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746717237/default-avatar_ysrrdy.png"
-              }
-              alt={currentPost.userId?.username || "Người dùng"}
-              className="author-avatar"
-            />
-            <div>
-              <h4>{currentPost.userId?.username || "Người dùng"}</h4>
-              <span className="post-date">
-                {formatDate(currentPost.createdAt)}
-              </span>
-            </div>
-          </div>
-
-          <div className="post-actions">
-            {currentPost.category === "exercise" && (
-              <div className={`post-status ${currentPost.status}`}>
-                {currentPost.status === "open"
-                  ? "Đang mở"
-                  : currentPost.status === "pending"
-                  ? "Đang chờ"
-                  : "Đã giải"}
-              </div>
-            )}
-
-            {isAuthor && currentPost.category === "exercise" && (
-              <div className="status-actions">
-                <button
-                  className={`status-button ${
-                    currentPost.status === "open" ? "active" : ""
-                  }`}
-                  onClick={() => handleUpdateStatus(currentPost._id, "open")}
-                >
-                  Đang mở
-                </button>
-                <button
-                  className={`status-button ${
-                    currentPost.status === "pending" ? "active" : ""
-                  }`}
-                  onClick={() => handleUpdateStatus(currentPost._id, "pending")}
-                >
-                  Đang chờ
-                </button>
-                <button
-                  className={`status-button ${
-                    currentPost.status === "solved" ? "active" : ""
-                  }`}
-                  onClick={() => handleUpdateStatus(currentPost._id, "solved")}
-                >
-                  Đã giải
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <h2 className="post-detail-title">{currentPost.title}</h2>
-
-        <div className="post-detail-content">{currentPost.content}</div>
-
-        {currentPost.images && currentPost.images.length > 0 && (
-          <div className="post-detail-images">
-            {currentPost.images.map((image, index) => (
-              <img
-                key={index}
-                src={image || "/placeholder.svg"}
-                alt={`Hình ảnh ${index + 1}`}
-              />
-            ))}
-          </div>
-        )}
-
-        {currentPost.files && currentPost.files.length > 0 && (
-          <div className="post-detail-files">
-            <h4>Tệp đính kèm:</h4>
-            <ul>
-              {currentPost.files.map((file, index) => (
-                <li key={index}>
-                  <a href={file.url} target="_blank" rel="noopener noreferrer">
-                    <i className="fas fa-file"></i> {file.name}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        <div className="post-detail-tags">
-          {currentPost.tags &&
-            currentPost.tags.map((tag, index) => (
-              <span key={index} className="tag">
-                #{tag}
-              </span>
-            ))}
-        </div>
-
-        <div className="post-detail-footer">
-          <div className="post-stats">
-            <span>
-              <i className="fas fa-eye"></i> {currentPost.views || 0} lượt xem
-            </span>
-            <span>
-              <i className="fas fa-comment"></i> {comments.length} bình luận
-            </span>
-            <span>
-              <i className="fas fa-heart"></i>{" "}
-              {currentPost.likes ? currentPost.likes.length : 0} lượt thích
-            </span>
-          </div>
-
-          <div className="post-actions">
-            <button
-              className={`action-button ${isLiked ? "liked" : ""}`}
-              onClick={() => handleLikePost(currentPost._id)}
-              data-tooltip-id="tooltip-like-detail"
-              data-tooltip-content="Thích bài đăng"
-            >
-              <i className="fas fa-heart"></i> Thích
-            </button>
-            <Tooltip id="tooltip-like-detail" />
-
-            <button
-              className={`action-button ${isBookmarked ? "bookmarked" : ""}`}
-              onClick={() => handleBookmarkPost(currentPost._id)}
-              disabled={bookmarkLoading[currentPost._id]}
-              data-tooltip-id="tooltip-bookmark-detail"
-              data-tooltip-content={isBookmarked ? "Bỏ lưu" : "Lưu bài đăng"}
-            >
-              {bookmarkLoading[currentPost._id] ? (
-                <div
-                  className="spinner"
-                  style={{ width: "16px", height: "16px" }}
-                ></div>
-              ) : (
-                <>
-                  <i className="fas fa-bookmark"></i> Lưu
-                </>
-              )}
-            </button>
-            <Tooltip id="tooltip-bookmark-detail" />
-
-            {(isAuthor || (user && user.role === "admin")) && (
-              <>
-                <button
-                  className="action-button delete"
-                  onClick={() => handleDeletePost(currentPost._id)}
-                  data-tooltip-id="tooltip-delete-detail"
-                  data-tooltip-content="Xóa bài đăng"
-                >
-                  <i className="fas fa-trash"></i> Xóa
-                </button>
-                <Tooltip id="tooltip-delete-detail" />
-              </>
-            )}
-          </div>
-        </div>
-
-        {currentPost.category === "exercise" && (
-          <div className="ai-response-section">
-            <div className="ai-response-header">
-              <h3>
-                <i className="fas fa-robot"></i> Trợ giúp từ AI
-              </h3>
-              {!currentPost.isAiAnswered && !isProcessingAi && (
-                <button
-                  className="btn-primary"
-                  onClick={handleAiResponse}
-                  disabled={isProcessingAi}
-                >
-                  <i className="fas fa-magic"></i> Giải bài tập bằng AI
-                </button>
-              )}
-            </div>
-
-            {isProcessingAi ? (
-              <div className="ai-processing">
-                <div className="spinner"></div>
-                <p>Đang xử lý bài toán của bạn...</p>
-              </div>
-            ) : currentPost.isAiAnswered ? (
-              <div className="ai-response-content">
-                {currentPost.aiResponse.split("\n").map((line, index) => (
-                  <p key={index}>{line}</p>
-                ))}
-              </div>
-            ) : (
-              <div className="ai-response-placeholder">
-                <p>
-                  AI có thể giúp bạn giải bài tập này. Nhấn nút "Giải bài tập
-                  bằng AI" để nhận trợ giúp.
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="comments-section">
-          <h3>Bình luận ({comments.length})</h3>
-
-          {user ? (
-            <form className="comment-form" onSubmit={handleCreateComment}>
-              <textarea
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder="Viết bình luận của bạn..."
-                required
-              />
-              <button type="submit" disabled={!commentText.trim()}>
-                Gửi bình luận
-              </button>
-            </form>
-          ) : (
-            <div className="login-prompt">
-              <p>
-                Vui lòng <Link to="/auth/login">đăng nhập</Link> để bình luận.
-              </p>
-            </div>
-          )}
-
-          {commentsLoading ? (
-            <div className="loading-spinner">Đang tải bình luận...</div>
-          ) : comments.length > 0 ? (
-            <div className="comments-list">
-              {comments.map((comment) => (
-                <div key={comment._id} className="comment">
-                  <div className="comment-header">
-                    <div className="comment-author">
-                      <img
-                        src={
-                          comment.userId?.avatar ||
-                          "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746717237/default-avatar_ysrrdy.png"
-                        }
-                        alt={comment.userId?.username || "Người dùng"}
-                        className="author-avatar"
-                      />
-                      <div>
-                        <h4>{comment.userId?.username || "Người dùng"}</h4>
-                        <span className="comment-date">
-                          {formatDateTime(comment.createdAt)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {user &&
-                      (comment.userId?._id === user._id ||
-                        user.role === "admin") && (
-                        <>
-                          <button
-                            className="delete-comment"
-                            onClick={() => handleDeleteComment(comment._id)}
-                            data-tooltip-id={`tooltip-delete-comment-${comment._id}`}
-                            data-tooltip-content="Xóa bình luận"
-                          >
-                            <i className="fas fa-trash"></i>
-                          </button>
-                          <Tooltip
-                            id={`tooltip-delete-comment-${comment._id}`}
-                          />
-                        </>
-                      )}
-                  </div>
-
-                  <div className="comment-content">{comment.content}</div>
-
-                  <div className="comment-footer">
-                    <button
-                      className={`like-comment ${
-                        user &&
-                        comment.likes &&
-                        comment.likes.includes(user._id)
-                          ? "liked"
-                          : ""
-                      }`}
-                      onClick={() => handleLikeComment(comment._id)}
-                      data-tooltip-id={`tooltip-like-comment-${comment._id}`}
-                      data-tooltip-content="Thích bình luận"
-                    >
-                      <i className="fas fa-heart"></i>{" "}
-                      {comment.likes ? comment.likes.length : 0}
-                    </button>
-                    <Tooltip id={`tooltip-like-comment-${comment._id}`} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="no-comments">
-              <p>Chưa có bình luận nào. Hãy là người đầu tiên bình luận!</p>
-            </div>
-          )}
-        </div>
+      <div className="login-prompt">
+        <p>
+          Vui lòng{" "}
+          <Link to="/login" style={{ color: "#ff6f61" }}>
+            đăng nhập
+          </Link>{" "}
+          để truy cập Góc học tập.
+        </p>
       </div>
     );
-  }, [
-    currentPost,
-    user,
-    comments,
-    commentsLoading,
-    bookmarkedPostIds,
-    bookmarkLoading,
-  ]);
-
-  const renderCreateForm = () => {
-    return (
-      <div className="create-post-form">
-        <h2>
-          {activeTab === "exercises"
-            ? "Đăng bài tập cần giải"
-            : activeTab === "learning"
-            ? "Đặt câu hỏi học tập"
-            : "Chia sẻ kiến thức"}
-        </h2>
-
-        <form onSubmit={handleCreatePost}>
-          <div className="form-group">
-            <label htmlFor="title">Tiêu đề *</label>
-            <input
-              type="text"
-              id="title"
-              name="title"
-              value={formData.title}
-              onChange={handleInputChange}
-              required
-              maxLength={200}
-              placeholder="Nhập tiêu đề bài đăng..."
-              disabled={createPostLoading}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="content">Nội dung *</label>
-            <textarea
-              id="content"
-              name="content"
-              value={formData.content}
-              onChange={handleInputChange}
-              required
-              rows={5}
-              placeholder="Mô tả chi tiết bài toán hoặc câu hỏi của bạn..."
-              disabled={createPostLoading}
-            />
-          </div>
-
-          {activeTab !== "sharing" && (
-            <div className="form-group">
-              <label htmlFor="subject">Cấp học *</label>
-              <select
-                id="subject"
-                name="subject"
-                value={formData.subject}
-                onChange={handleInputChange}
-                required
-                disabled={createPostLoading}
-              >
-                <option value="primary">Tiểu học</option>
-                <option value="secondary">THCS</option>
-                <option value="highschool">THPT</option>
-                <option value="university">Đại học</option>
-                <option value="other">Khác</option>
-              </select>
-            </div>
-          )}
-
-          <div className="form-group">
-            <label htmlFor="tags">Thẻ</label>
-            <input
-              type="text"
-              id="tags"
-              name="tags"
-              value={formData.tags}
-              onChange={handleInputChange}
-              placeholder="Nhập các thẻ, phân cách bằng dấu phẩy (ví dụ: đại số, hình học, giải tích)"
-              disabled={createPostLoading}
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Hình ảnh</label>
-            <div className="upload-preview">
-              {formData.images.map((url, index) => (
-                <div key={index} className="image-preview">
-                  <img
-                    src={url || "/placeholder.svg"}
-                    alt={`Preview ${index}`}
-                  />
-                  <button
-                    type="button"
-                    className="remove-image"
-                    onClick={() =>
-                      setFormData({
-                        ...formData,
-                        images: formData.images.filter((_, i) => i !== index),
-                      })
-                    }
-                    disabled={createPostLoading}
-                  >
-                    <i className="fas fa-times"></i>
-                  </button>
-                </div>
-              ))}
-
-              <button
-                type="button"
-                className="upload-button"
-                onClick={() => imageInputRef.current.click()}
-                disabled={createPostLoading}
-              >
-                <i className="fas fa-image"></i> Thêm hình ảnh
-              </button>
-              <input
-                type="file"
-                ref={imageInputRef}
-                onChange={handleImageUpload}
-                accept="image/*"
-                multiple
-                style={{ display: "none" }}
-                disabled={createPostLoading}
-              />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label>Tệp đính kèm</label>
-            <div className="upload-preview">
-              {formData.files.map((file, index) => (
-                <div key={index} className="file-preview">
-                  <i className="fas fa-file"></i> {file.name}
-                  <button
-                    type="button"
-                    className="remove-file"
-                    onClick={() =>
-                      setFormData({
-                        ...formData,
-                        files: formData.files.filter((_, i) => i !== index),
-                      })
-                    }
-                    disabled={createPostLoading}
-                  >
-                    <i className="fas fa-times"></i>
-                  </button>
-                </div>
-              ))}
-
-              <button
-                type="button"
-                className="upload-button"
-                onClick={() => fileInputRef.current.click()}
-                disabled={createPostLoading}
-              >
-                <i className="fas fa-paperclip"></i> Thêm tệp đính kèm
-              </button>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                multiple
-                style={{ display: "none" }}
-                disabled={createPostLoading}
-              />
-            </div>
-          </div>
-
-          <div className="form-actions">
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => setShowCreateForm(false)}
-              disabled={createPostLoading}
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              className="btn-primary"
-              disabled={createPostLoading}
-            >
-              {createPostLoading ? (
-                <>
-                  <div
-                    className="spinner"
-                    style={{
-                      display: "inline-block",
-                      width: "20px",
-                      height: "20px",
-                      marginRight: "8px",
-                    }}
-                  ></div>
-                  Đang đăng...
-                </>
-              ) : (
-                "Đăng bài"
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-    );
-  };
+  }
 
   return (
-    <div className="study-corner-container">
-      <div className="study-corner-sidebar">
-        <h2>Góc học tập</h2>
-        <nav>
-          <ul>
-            <li className={activeTab === "exercises" ? "active" : ""}>
-              <Link to="/study-corner?tab=exercises">
-                <i className="fas fa-book"></i> Bài tập
-              </Link>
-            </li>
-            <li className={activeTab === "learning" ? "active" : ""}>
-              <Link to="/study-corner?tab=learning">
-                <i className="fas fa-question-circle"></i> Hỏi đáp
-              </Link>
-            </li>
-            <li className={activeTab === "sharing" ? "active" : ""}>
-              <Link to="/study-corner?tab=sharing">
-                <i className="fas fa-share-alt"></i> Chia sẻ
-              </Link>
-            </li>
-            <li className={activeTab === "bookmarks" ? "active" : ""}>
-              <Link to="/study-corner?tab=bookmarks">
-                <i className="fas fa-bookmark"></i> Đã lưu
-              </Link>
-            </li>
-          </ul>
-        </nav>
-
+    <div className="study-corner">
+      <div className="study-corner-container">
         {!id && (
-          <div className="sidebar-filters">
-            <h3>Bộ lọc</h3>
-
-            {(activeTab === "exercises" || activeTab === "learning") && (
-              <>
-                <div className="filter-group">
-                  <label htmlFor="subject-filter">Cấp học</label>
-                  <select
-                    id="subject-filter"
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                  >
-                    <option value="">Tất cả</option>
-                    <option value="primary">Tiểu học</option>
-                    <option value="secondary">THCS</option>
-                    <option value="highschool">THPT</option>
-                    <option value="university">Đại học</option>
-                    <option value="other">Khác</option>
-                  </select>
-                </div>
-
-                {activeTab === "exercises" && (
-                  <div className="filter-group">
-                    <label htmlFor="status-filter">Trạng thái</label>
-                    <select
-                      id="status-filter"
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value)}
-                    >
-                      <option value="">Tất cả</option>
-                      <option value="open">Đang mở</option>
-                      <option value="pending">Đang chờ</option>
-                      <option value="solved">Đã giải</option>
-                    </select>
-                  </div>
-                )}
-              </>
-            )}
-
-            <div className="filter-group">
-              <label htmlFor="search-filter">Tìm kiếm</label>
-              <div className="search-input">
-                <input
-                  type="text"
-                  id="search-filter"
-                  value={searchInput}
-                  onChange={handleSearchChange}
-                  placeholder="Tìm kiếm..."
-                />
-                <button
-                  className="search-button"
+          <div className="study-corner-sidebar">
+            <h2>Góc học tập</h2>
+            <nav>
+              <ul>
+                <li
+                  className={activeTab === "exercises" ? "active" : ""}
                   onClick={() => {
-                    setSearch(searchInput);
-                    setPage(1);
+                    setActiveTab("exercises");
+                    navigate("/study-corner/exercises");
                   }}
                 >
+                  <a href="#">
+                    <i className="fas fa-dumbbell"></i> Bài tập
+                  </a>
+                </li>
+                <li
+                  className={activeTab === "learning" ? "active" : ""}
+                  onClick={() => {
+                    setActiveTab("learning");
+                    navigate("/study-corner/learning");
+                  }}
+                >
+                  <a href="#">
+                    <i className="fas fa-book"></i> Hỏi đáp
+                  </a>
+                </li>
+                <li
+                  className={activeTab === "sharing" ? "active" : ""}
+                  onClick={() => {
+                    setActiveTab("sharing");
+                    navigate("/study-corner/sharing");
+                  }}
+                >
+                  <a href="#">
+                    <i className="fas fa-share-alt"></i> Chia sẻ
+                  </a>
+                </li>
+                <li
+                  className={activeTab === "bookmarks" ? "active" : ""}
+                  onClick={() => {
+                    setActiveTab("bookmarks");
+                    navigate("/study-corner/bookmarks");
+                  }}
+                >
+                  <a href="#">
+                    <i className="fas fa-bookmark"></i> Đã lưu
+                  </a>
+                </li>
+              </ul>
+            </nav>
+            <div className="sidebar-filters">
+              <div className="filter-group">
+                <label htmlFor="subject">Môn học</label>
+                <select
+                  id="subject"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                >
+                  <option value="">Tất cả</option>
+                  <option value="highschool">Trung học</option>
+                  <option value="secondary">Trung học cơ sở</option>
+                  <option value="primary">Tiểu học</option>
+                  <option value="university">Đại học</option>
+                  <option value="other">Khác</option>
+                </select>
+              </div>
+              <div className="filter-group">
+                <label htmlFor="status">Trạng thái</label>
+                <select
+                  id="status"
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                >
+                  <option value="">Tất cả</option>
+                  <option value="open">Đang mở</option>
+                  <option value="pending">Đang chờ</option>
+                  <option value="solved">Đã giải</option>
+                </select>
+              </div>
+              <div className="filter-group search-input">
+                <label htmlFor="search">Tìm kiếm</label>
+                <input
+                  type="text"
+                  id="search"
+                  placeholder="Nhập từ khóa..."
+                  value={searchInput}
+                  onChange={handleSearchChange}
+                />
+                <button className="search-button">
                   <i className="fas fa-search"></i>
                 </button>
               </div>
+              <div className="filter-group">
+                <label htmlFor="imageSearch">Tìm kiếm bằng ảnh</label>
+                <input
+                  type="file"
+                  id="imageSearch"
+                  accept="image/*"
+                  ref={imageInputRef}
+                  onChange={handleSearchByImage}
+                  style={{ display: "none" }}
+                />
+                <button
+                  className="image-search-button"
+                  onClick={() => imageInputRef.current.click()}
+                >
+                  <i className="fas fa-camera"></i> Tải ảnh lên
+                </button>
+                {searchImage && (
+                  <div className="image-preview">
+                    <img
+                      src={URL.createObjectURL(searchImage)}
+                      alt="Preview"
+                      className="search-image-preview"
+                    />
+                    <button
+                      className="remove-image"
+                      onClick={() => setSearchImage(null)}
+                    >
+                      <i className="fas fa-times"></i>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
+          </div>
+        )}
 
-            <div className="filter-group">
-              <label>Tìm kiếm bằng hình ảnh</label>
-              <button
-                className="image-search-button"
-                onClick={() => imageInputRef.current.click()}
-              >
-                <i className="fas fa-camera"></i> Tải lên hình ảnh
-              </button>
-              <input
-                type="file"
-                ref={imageInputRef}
-                onChange={handleSearchByImage}
-                accept="image/*"
-                style={{ display: "none" }}
-              />
-
-              {searchImage && (
-                <div className="image-preview">
-                  <img
-                    src={URL.createObjectURL(searchImage) || "/placeholder.svg"}
-                    alt="Search"
-                    className="search-image-preview"
-                  />
+        <div className="study-corner-content">
+          {!id ? (
+            <>
+              <div className="content-header">
+                <h1>
+                  {activeTab === "exercises"
+                    ? "Bài tập"
+                    : activeTab === "learning"
+                    ? "Hỏi đáp"
+                    : activeTab === "sharing"
+                    ? "Chia sẻ"
+                    : "Đã lưu"}
+                </h1>
+                {user && (
                   <button
-                    className="remove-image"
-                    onClick={() => setSearchImage(null)}
+                    className="create-post-button"
+                    onClick={() => setShowCreateForm(true)}
                   >
-                    <i className="fas fa-times"></i>
+                    <i className="fas fa-plus"></i> Tạo bài đăng
+                  </button>
+                )}
+              </div>
+
+              {showCreateForm && (
+                <div className="create-post-form">
+                  <h2>Tạo bài đăng mới</h2>
+                  <form onSubmit={handleCreatePost}>
+                    <div className="form-group">
+                      <label htmlFor="title">Tiêu đề</label>
+                      <input
+                        type="text"
+                        id="title"
+                        name="title"
+                        value={formData.title}
+                        onChange={handleInputChange}
+                        placeholder="Nhập tiêu đề..."
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="content">Nội dung</label>
+                      <textarea
+                        id="content"
+                        name="content"
+                        value={formData.content}
+                        onChange={handleInputChange}
+                        placeholder="Nhập nội dung..."
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="tags">
+                        Tags (cách nhau bằng dấu phẩy)
+                      </label>
+                      <input
+                        type="text"
+                        id="tags"
+                        name="tags"
+                        value={formData.tags}
+                        onChange={handleInputChange}
+                        placeholder="Ví dụ: toán, lý, hóa"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="imageUpload">Tải ảnh lên</label>
+                      <input
+                        type="file"
+                        id="imageUpload"
+                        accept="image/*"
+                        ref={imageInputRef}
+                        onChange={handleImageUpload}
+                        style={{ display: "none" }}
+                      />
+                      <button
+                        type="button"
+                        className="upload-button"
+                        onClick={() => imageInputRef.current.click()}
+                        disabled={createPostLoading}
+                      >
+                        <i className="fas fa-camera"></i> Tải ảnh
+                      </button>
+                      {formData.images.map((url, index) => (
+                        <div key={index} className="file-preview">
+                          <i className="fas fa-image"></i>
+                          <span>{`Hình ảnh ${index + 1}`}</span>
+                          <button
+                            className="remove-file"
+                            onClick={() =>
+                              setFormData({
+                                ...formData,
+                                images: formData.images.filter(
+                                  (_, i) => i !== index
+                                ),
+                              })
+                            }
+                          >
+                            <i className="fas fa-times"></i>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="fileUpload">Tải tệp lên</label>
+                      <input
+                        type="file"
+                        id="fileUpload"
+                        ref={fileInputRef}
+                        onChange={handleFileUpload}
+                        style={{ display: "none" }}
+                      />
+                      <button
+                        type="button"
+                        className="upload-button"
+                        onClick={() => fileInputRef.current.click()}
+                        disabled={createPostLoading}
+                      >
+                        <i className="fas fa-file"></i> Tải tệp
+                      </button>
+                      {formData.files.map((file, index) => (
+                        <div key={index} className="file-preview">
+                          <i className="fas fa-file"></i>
+                          <span>{file.name}</span>
+                          <button
+                            className="remove-file"
+                            onClick={() =>
+                              setFormData({
+                                ...formData,
+                                files: formData.files.filter(
+                                  (_, i) => i !== index
+                                ),
+                              })
+                            }
+                          >
+                            <i className="fas fa-times"></i>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      type="submit"
+                      className="btn-primary"
+                      disabled={createPostLoading}
+                    >
+                      {createPostLoading ? (
+                        <div
+                          className="spinner"
+                          style={{ width: "16px", height: "16px" }}
+                        ></div>
+                      ) : (
+                        "Đăng bài"
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => setShowCreateForm(false)}
+                      style={{ marginLeft: "10px" }}
+                    >
+                      Hủy
+                    </button>
+                  </form>
+                </div>
+              )}
+
+              {loading ? (
+                <div className="loading-spinner">
+                  <div className="spinner"></div> Đang tải...
+                </div>
+              ) : posts.length === 0 ? (
+                <div className="login-prompt">
+                  <p>Không có bài đăng nào để hiển thị.</p>
+                </div>
+              ) : (
+                <AutoSizer>
+                  {({ height, width }) => (
+                    <List
+                      height={height}
+                      width={width}
+                      itemCount={posts.length}
+                      itemSize={300}
+                      itemData={posts}
+                      className="post-list"
+                    >
+                      {PostRow}
+                    </List>
+                  )}
+                </AutoSizer>
+              )}
+
+              {totalPages > 1 && (
+                <div className="pagination">
+                  <button
+                    className="pagination-button"
+                    onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={page === 1}
+                  >
+                    <i className="fas fa-chevron-left"></i> Trước
+                  </button>
+                  <span className="pagination-info">
+                    Trang {page} / {totalPages}
+                  </span>
+                  <button
+                    className="pagination-button"
+                    onClick={() =>
+                      setPage((prev) => Math.min(prev + 1, totalPages))
+                    }
+                    disabled={page === totalPages}
+                  >
+                    Tiếp <i className="fas fa-chevron-right"></i>
                   </button>
                 </div>
               )}
-            </div>
-          </div>
-        )}
-      </div>
+            </>
+          ) : (
+            currentPost && (
+              <div className="post-detail">
+                <div className="post-detail-header">
+                  <div>
+                    <div className="post-author">
+                      <img
+                        src={
+                          currentPost.userId?.avatar ||
+                          "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746717237/default-avatar_ysrrdy.png"
+                        }
+                        alt={currentPost.userId?.username || "Người dùng"}
+                        className="author-avatar"
+                      />
+                      <div>
+                        <h4>{currentPost.userId?.username || "Người dùng"}</h4>
+                        <span className="post-date">
+                          {formatDateTime(currentPost.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+                    {currentPost.status && (
+                      <div className={`post-status ${currentPost.status}`}>
+                        {currentPost.status === "open"
+                          ? "Đang mở"
+                          : currentPost.status === "pending"
+                          ? "Đang chờ"
+                          : "Đã giải"}
+                      </div>
+                    )}
+                  </div>
+                  {user &&
+                    (currentPost.userId?._id === user._id ||
+                      user.role === "admin") && (
+                      <button
+                        className="action-button delete"
+                        onClick={() => handleDeletePost(currentPost._id)}
+                        data-tooltip-id="tooltip-delete-detail"
+                        data-tooltip-content="Xóa bài đăng"
+                      >
+                        <i className="fas fa-trash"></i>
+                      </button>
+                    )}
+                  <Tooltip id="tooltip-delete-detail" />
+                </div>
 
-      <div className="study-corner-content">
-        <div className="content-header">
-          <h1>
-            {id
-              ? currentPost?.title || "Chi tiết bài đăng"
-              : activeTab === "exercises"
-              ? "Bài tập toán học"
-              : activeTab === "learning"
-              ? "Hỏi đáp học tập"
-              : activeTab === "sharing"
-              ? "Chia sẻ kiến thức"
-              : "Bài đăng đã lưu"}
-          </h1>
+                <h1 className="post-detail-title">{currentPost.title}</h1>
+                <div className="post-detail-content">{currentPost.content}</div>
 
-          {!id && !showCreateForm && user && (
-            <button
-              className="create-post-button"
-              onClick={() => setShowCreateForm(true)}
-            >
-              <i className="fas fa-plus"></i>{" "}
-              {activeTab === "exercises"
-                ? "Đăng bài tập"
-                : activeTab === "learning"
-                ? "Đặt câu hỏi"
-                : "Chia sẻ"}
-            </button>
-          )}
+                {currentPost.images && currentPost.images.length > 0 && (
+                  <div className="post-detail-images">
+                    {currentPost.images.map((url, index) => (
+                      <img
+                        key={index}
+                        src={url}
+                        alt={`Hình ảnh ${index + 1}`}
+                      />
+                    ))}
+                  </div>
+                )}
 
-          {!id && !showCreateForm && !user && (
-            <div className="login-prompt">
-              <p>
-                Vui lòng <Link to="/auth/login">đăng nhập</Link> để tạo bài
-                đăng.
-              </p>
-            </div>
+                {currentPost.files && currentPost.files.length > 0 && (
+                  <div className="post-detail-files">
+                    <h4>Tệp đính kèm</h4>
+                    <ul>
+                      {currentPost.files.map((file, index) => (
+                        <li key={index}>
+                          <a
+                            href={file.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <i className="fas fa-file"></i> {file.name}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="post-detail-tags">
+                  {currentPost.tags &&
+                    currentPost.tags.map((tag, index) => (
+                      <span key={index} className="tag">
+                        #{tag}
+                      </span>
+                    ))}
+                </div>
+
+                <div className="post-detail-footer">
+                  <div className="post-stats">
+                    <span>
+                      <i className="fas fa-eye"></i> {currentPost.views || 0}
+                    </span>
+                    <span>
+                      <i className="fas fa-comment"></i>{" "}
+                      {currentPost.commentCount || 0}
+                    </span>
+                    <span>
+                      <i className="fas fa-heart"></i>
+                      {currentPost.likes ? currentPost.likes.length : 0}
+                    </span>
+                  </div>
+
+                  <div className="status-actions">
+                    {user &&
+                      (currentPost.userId?._id === user._id ||
+                        user.role === "admin") && (
+                        <>
+                          <button
+                            className={`status-button ${
+                              currentPost.status === "open" ? "active" : ""
+                            }`}
+                            onClick={() =>
+                              handleUpdateStatus(currentPost._id, "open")
+                            }
+                          >
+                            Đang mở
+                          </button>
+                          <button
+                            className={`status-button ${
+                              currentPost.status === "pending" ? "active" : ""
+                            }`}
+                            onClick={() =>
+                              handleUpdateStatus(currentPost._id, "pending")
+                            }
+                          >
+                            Đang chờ
+                          </button>
+                          <button
+                            className={`status-button ${
+                              currentPost.status === "solved" ? "active" : ""
+                            }`}
+                            onClick={() =>
+                              handleUpdateStatus(currentPost._id, "solved")
+                            }
+                          >
+                            Đã giải
+                          </button>
+                        </>
+                      )}
+                  </div>
+                </div>
+
+                <div className="ai-response-section">
+                  <div className="ai-response-header">
+                    <h3>
+                      <i className="fas fa-robot"></i> Trả lời từ AI
+                    </h3>
+                    {user &&
+                      !currentPost.isAiAnswered &&
+                      (currentPost.category === "exercise" ||
+                        currentPost.category === "question") && (
+                        <button
+                          className="btn-primary"
+                          onClick={handleAiResponse}
+                          disabled={isProcessingAi}
+                        >
+                          {isProcessingAi ? (
+                            <div
+                              className="spinner"
+                              style={{ width: "16px", height: "16px" }}
+                            ></div>
+                          ) : (
+                            "Giải bài tập"
+                          )}
+                        </button>
+                      )}
+                  </div>
+                  {isProcessingAi ? (
+                    <div className="ai-processing">
+                      <div className="spinner"></div> Đang xử lý...
+                    </div>
+                  ) : currentPost.aiResponse ? (
+                    <div className="ai-response-content">
+                      {currentPost.aiResponse}
+                    </div>
+                  ) : (
+                    <div className="ai-response-placeholder">
+                      Chưa có câu trả lời từ AI. Nhấn "Giải bài tập" để yêu cầu.
+                    </div>
+                  )}
+                </div>
+
+                <div className="comments-section">
+                  <h3>Bình luận</h3>
+                  {user && (
+                    <form
+                      className="comment-form"
+                      onSubmit={handleCreateComment}
+                    >
+                      <textarea
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        placeholder="Viết bình luận..."
+                      />
+                      <button type="submit" disabled={!commentText.trim()}>
+                        Gửi
+                      </button>
+                    </form>
+                  )}
+                  {commentsLoading ? (
+                    <div className="loading-spinner">
+                      <div className="spinner"></div> Đang tải...
+                    </div>
+                  ) : comments.length === 0 ? (
+                    <div className="no-comments">Chưa có bình luận nào.</div>
+                  ) : (
+                    <div className="comments-list">
+                      {comments.map((comment) => (
+                        <div key={comment._id} className="comment">
+                          <div className="comment-header">
+                            <div className="comment-author">
+                              <img
+                                src={
+                                  comment.userId?.avatar ||
+                                  "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746717237/default-avatar_ysrrdy.png"
+                                }
+                                alt={comment.userId?.username || "Người dùng"}
+                                className="author-avatar"
+                              />
+                              <div>
+                                <h4>
+                                  {comment.userId?.username || "Người dùng"}
+                                </h4>
+                                <span className="comment-date">
+                                  {formatDateTime(comment.createdAt)}
+                                </span>
+                              </div>
+                            </div>
+                            {user &&
+                              (comment.userId?._id === user._id ||
+                                user.role === "admin") && (
+                                <button
+                                  className="delete-comment"
+                                  onClick={() =>
+                                    handleDeleteComment(comment._id)
+                                  }
+                                >
+                                  <i className="fas fa-trash"></i>
+                                </button>
+                              )}
+                          </div>
+                          <div className="comment-content">
+                            {comment.content}
+                          </div>
+                          <div className="comment-footer">
+                            <button
+                              className={`like-comment ${
+                                comment.likes && user
+                                  ? comment.likes.includes(user._id)
+                                    ? "liked"
+                                    : ""
+                                  : ""
+                              }`}
+                              onClick={() => handleLikeComment(comment._id)}
+                            >
+                              <i className="fas fa-heart"></i>{" "}
+                              {comment.likes ? comment.likes.length : 0}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
           )}
         </div>
-
-        {showCreateForm
-          ? renderCreateForm()
-          : id
-          ? renderPostDetail()
-          : renderPostList()}
-
-        {!id && !showCreateForm && totalPages > 1 && (
-          <div className="pagination">
-            <button
-              className="pagination-button"
-              disabled={page === 1}
-              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-            >
-              <i className="fas fa-chevron-left"></i> Trang trước
-            </button>
-
-            <span className="pagination-info">
-              Trang {page} / {totalPages}
-            </span>
-
-            <button
-              className="pagination-button"
-              disabled={page === totalPages}
-              onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
-            >
-              Trang sau <i className="fas fa-chevron-right"></i>
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

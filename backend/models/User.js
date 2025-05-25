@@ -37,10 +37,8 @@ const UserSchema = new mongoose.Schema({
   password: {
     type: String,
     required: [true, "Vui lòng nhập mật khẩu"],
-    minlength: [8, "Mật khẩu phải có ít nhất 10 ký tự"],
-    minlength: [8, "Mật khẩu phải có ít nhất 10 ký tự"],
+    minlength: [8, "Mật khẩu phải có ít nhất 8 ký tự"],
     match: [
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
       "Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt",
     ],
@@ -57,10 +55,10 @@ const UserSchema = new mongoose.Schema({
       "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746717237/default-avatar_ysrrdy.png",
     validate: {
       validator: (v) => {
-        if (!v) return true;
+        if (!v) return true; // Cho phép giá trị rỗng hoặc undefined
         return /^(https?:\/\/|\/)/.test(v);
       },
-      message: "Avatar must be a valid URL or relative path",
+      message: "Avatar phải là một URL hoặc đường dẫn hợp lệ",
     },
   },
   bio: {

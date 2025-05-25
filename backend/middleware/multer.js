@@ -1,20 +1,39 @@
 const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 
-const fileFilter = (req, file, cb) => {
-  const filetypes = /jpeg|jpg|png/;
-  const mimetype = filetypes.test(file.mimetype);
-  const extname = filetypes.test(file.originalname.toLowerCase());
+// Đảm bảo thư mục uploads tồn tại
+const uploadPath = path.join(__dirname, "..", "uploads");
+if (!fs.existsSync(uploadPath)) {
+  fs.mkdirSync(uploadPath);
+}
 
-  if (mimetype && extname) {
-    return cb(null, true);
-  }
-  cb(new Error("Chỉ hỗ trợ file JPEG, JPG, PNG!"));
-};
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
+});
 
 const upload = multer({
-  storage: multer.memoryStorage(), // Lưu file vào bộ nhớ, không lưu đĩa
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-  fileFilter,
+  storage: storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "image/jpeg",
+      "image/png",
+    ];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Định dạng tệp không được hỗ trợ: " + file.mimetype));
+    }
+  },
 });
 
 module.exports = upload;

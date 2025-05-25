@@ -1,4 +1,3 @@
-// frontend/src/services/profileService.js
 import api from "./api";
 
 // Lấy điểm số
@@ -7,7 +6,9 @@ export const getScores = async () => {
     const response = await api.get("/users/profile/scores");
     return response.data;
   } catch (error) {
-    throw error;
+    throw new Error(
+      error.response?.data?.message || "Không thể lấy điểm số"
+    );
   }
 };
 
@@ -17,7 +18,9 @@ export const getBookmarks = async () => {
     const response = await api.get("/users/profile/library");
     return response.data;
   } catch (error) {
-    throw error;
+    throw new Error(
+      error.response?.data?.message || "Không thể lấy thư viện"
+    );
   }
 };
 
@@ -27,7 +30,9 @@ export const getPosts = async () => {
     const response = await api.get("/users/profile/posts");
     return response.data;
   } catch (error) {
-    throw error;
+    throw new Error(
+      error.response?.data?.message || "Không thể lấy bài đăng"
+    );
   }
 };
 
@@ -37,7 +42,9 @@ export const getCourses = async () => {
     const response = await api.get("/users/profile/courses");
     return response.data;
   } catch (error) {
-    throw error;
+    throw new Error(
+      error.response?.data?.message || "Không thể lấy khóa học"
+    );
   }
 };
 
@@ -47,7 +54,9 @@ export const getParticipatedExams = async () => {
     const response = await api.get("/users/profile/participated-exams");
     return response.data;
   } catch (error) {
-    throw error;
+    throw new Error(
+      error.response?.data?.message || "Không thể lấy danh sách đề thi đã tham gia"
+    );
   }
 };
 
@@ -57,7 +66,9 @@ export const addBookmark = async (itemData) => {
     const response = await api.post("/users/profile/library", itemData);
     return response.data;
   } catch (error) {
-    throw error;
+    throw new Error(
+      error.response?.data?.message || "Không thể thêm vào thư viện"
+    );
   }
 };
 
@@ -67,7 +78,9 @@ export const createPost = async (postData) => {
     const response = await api.post("/users/profile/posts", postData);
     return response.data;
   } catch (error) {
-    throw error;
+    throw new Error(
+      error.response?.data?.message || "Không thể tạo bài đăng"
+    );
   }
 };
 
@@ -77,6 +90,8 @@ export const createCourse = async (courseData) => {
     const response = await api.post("/users/profile/courses", courseData);
     return response.data;
   } catch (error) {
-    throw error;
+    throw new Error(
+      error.response?.data?.message || "Không thể tạo khóa học"
+    );
   }
 };

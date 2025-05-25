@@ -1,11 +1,10 @@
-// backend/controllers/profileController.js
 const asyncHandler = require("../middleware/asyncHandler");
 const ErrorResponse = require("../utils/errorResponse");
 const Score = require("../models/Score");
 const Bookmark = require("../models/Bookmark");
 const Post = require("../models/Post");
 const Course = require("../models/Course");
-const Exam = require("../models/Exam"); // Thêm model Exam
+const Exam = require("../models/Exam");
 
 exports.getScores = asyncHandler(async (req, res, next) => {
   const page = parseInt(req.query.page) || 1;
@@ -21,24 +20,24 @@ exports.getScores = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    data: scores,
+    data: scores || [],
     pagination: { page, limit, total },
   });
 });
 
 exports.getBookmarks = asyncHandler(async (req, res, next) => {
   const items = await Bookmark.find({ userId: req.user.id });
-  res.status(200).json({ success: true, data: items });
+  res.status(200).json({ success: true, data: items || [] });
 });
 
 exports.getPosts = asyncHandler(async (req, res, next) => {
   const posts = await Post.find({ userId: req.user.id });
-  res.status(200).json({ success: true, data: posts });
+  res.status(200).json({ success: true, data: posts || [] });
 });
 
 exports.getCourses = asyncHandler(async (req, res, next) => {
   const { role } = req.user;
-  let courses;
+  let courses = [];
   if (role === "student") {
     courses = await Course.find({ students: req.user.id }).populate(
       "instructorId",
@@ -49,12 +48,17 @@ exports.getCourses = asyncHandler(async (req, res, next) => {
       "students",
       "username"
     );
+  } else {
+    return next(new ErrorResponse("Vai trò không hợp lệ", 400));
   }
   res.status(200).json({ success: true, data: courses });
 });
 
 exports.addBookmark = asyncHandler(async (req, res, next) => {
   const { title, type, url } = req.body;
+  if (!title || !type || !url) {
+    return next(new ErrorResponse("Thiếu thông tin cần thiết", 400));
+  }
   const item = await Bookmark.create({
     userId: req.user.id,
     title,
@@ -66,6 +70,9 @@ exports.addBookmark = asyncHandler(async (req, res, next) => {
 
 exports.createPost = asyncHandler(async (req, res, next) => {
   const { title, content, type } = req.body;
+  if (!title || !content || !type) {
+    return next(new ErrorResponse("Thiếu thông tin cần thiết", 400));
+  }
   const post = await Post.create({
     userId: req.user.id,
     title,
@@ -77,6 +84,9 @@ exports.createPost = asyncHandler(async (req, res, next) => {
 
 exports.enrollCourse = asyncHandler(async (req, res, next) => {
   const { courseId } = req.body;
+  if (!courseId) {
+    return next(new ErrorResponse("Thiếu courseId", 400));
+  }
   const course = await Course.findById(courseId);
   if (!course) {
     return next(new ErrorResponse("Khóa học không tồn tại", 404));
@@ -92,10 +102,13 @@ exports.enrollCourse = asyncHandler(async (req, res, next) => {
 
 exports.createCourse = asyncHandler(async (req, res, next) => {
   const { title, description, price } = req.body;
+  if (!title || !description) {
+    return next(new ErrorResponse("Thiếu thông tin cần thiết", 400));
+  }
   const course = await Course.create({
     title,
     description,
-    price,
+    price: price || 0,
     instructorId: req.user.id,
   });
   res.status(201).json({ success: true, data: course });
@@ -107,16 +120,16 @@ exports.getParticipatedExams = asyncHandler(async (req, res, next) => {
   }
   const scores = await Score.find({ userId: req.user.id }).populate("examId");
   const participatedExams = scores
-    .filter((score) => score.examId)
+    .filter((score) => score.examId) // Kiểm tra score.examId tồn tại
     .map((score) => ({
       _id: score.examId._id,
       title: score.examId.title,
-      subject: score.examId.subject,
+      subject: score.examId.subject || "Không xác định",
       score: score.score,
       startTime: score.examId.startTime,
       endTime: score.examId.endTime,
     }));
-  res.status(200).json({ success: true, data: participatedExams });
+  res.status(200).json({ success: true, data: participatedExams || [] });
 });
 
 exports.getAchievements = asyncHandler(async (req, res, next) => {
@@ -132,5 +145,5 @@ exports.getAchievements = asyncHandler(async (req, res, next) => {
     achievements.push({ name: "Đạt điểm 100", badge: "perfect-score" });
   }
 
-  res.status(200).json({ success: true, data: achievements });
+  res.status(200).json({ success: true, data: achievements || [] });
 });

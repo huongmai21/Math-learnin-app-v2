@@ -1,5 +1,5 @@
 const Document = require("../models/Document");
-const Notification = require("../models/Notification");
+// const Notification = require("../models/Notification");
 const cloudinary = require("../config/cloudinary");
 const asyncHandler = require("../middleware/asyncHandler");
 const ErrorResponse = require("../utils/errorResponse");
@@ -24,36 +24,44 @@ exports.createDocument = asyncHandler(async (req, res, next) => {
     tags,
   } = req.body;
 
-  const allowedFileTypes = [".pdf", ".doc", ".docx"];
-  if (
-    req.files?.file &&
-    !allowedFileTypes.some((type) => req.files.file.name.endsWith(type))
-  ) {
-    return next(new ErrorResponse("Chỉ chấp nhận file PDF, DOC, DOCX", 400));
+  if (!req.files?.file) {
+    return next(new ErrorResponse("File tài liệu là bắt buộc", 400));
   }
 
   let fileUrl = "";
-  if (req.files?.file) {
-    try {
-      const uploadResult = await cloudinary.uploader.upload(
-        req.files.file.tempFilePath,
-        {
-          folder: "documents",
-          resource_type: "auto",
-        }
-      );
-      fileUrl = uploadResult.secure_url;
-    } catch (err) {
-      console.error("Cloudinary upload file error:", err);
-      return next(new ErrorResponse("Lỗi khi upload file lên Cloudinary", 500));
-    }
+  let public_id = "";
+  let format = "";
+  try {
+    const uploadResult = await cloudinary.uploader.upload(
+      req.files.file[0].path,
+      {
+        folder: `documents/${educationLevel}`,
+        resource_type: "auto",
+      }
+    );
+    fileUrl = uploadResult.secure_url;
+    public_id = uploadResult.public_id;
+    format = path
+      .extname(req.files.file[0].originalname)
+      .toLowerCase()
+      .replace(".", "");
+  } catch (err) {
+    console.error("Cloudinary upload file error:", err);
+    await fs
+      .unlink(req.files.file[0].path)
+      .catch((e) => console.error("Error deleting temp file:", e));
+    return next(new ErrorResponse("Lỗi khi upload file lên Cloudinary", 500));
+  } finally {
+    await fs
+      .unlink(req.files.file[0].path)
+      .catch((e) => console.error("Error deleting temp file:", e));
   }
 
   let thumbnailUrl = "";
   if (req.files?.thumbnail) {
     try {
       const uploadResult = await cloudinary.uploader.upload(
-        req.files.thumbnail.tempFilePath,
+        req.files.thumbnail[0].path,
         {
           folder: "thumbnails",
           resource_type: "image",
@@ -62,56 +70,183 @@ exports.createDocument = asyncHandler(async (req, res, next) => {
       thumbnailUrl = uploadResult.secure_url;
     } catch (err) {
       console.error("Cloudinary upload thumbnail error:", err);
-      return next(
-        new ErrorResponse("Lỗi khi upload thumbnail lên Cloudinary", 500)
-      );
+      await fs
+        .unlink(req.files.thumbnail[0].path)
+        .catch((e) => console.error("Error deleting temp thumbnail:", e));
+    } finally {
+      await fs
+        .unlink(req.files.thumbnail[0].path)
+        .catch((e) => console.error("Error deleting temp thumbnail:", e));
     }
   }
 
   const document = await Document.create({
     title,
-    description,
-    content,
+    description: description || "",
+    content: content || "",
     fileUrl,
+    public_id,
+    format,
     thumbnail: thumbnailUrl,
     educationLevel,
-    grade: educationLevel !== "university" ? grade : undefined,
-    subject: educationLevel === "university" ? subject : undefined,
+    grade: educationLevel !== "university" ? grade : null,
+    subject: educationLevel === "university" ? subject : null,
     documentType,
     tags: tags ? tags.split(",").map((tag) => tag.trim()) : [],
     uploadedBy: req.user.id,
-    status: "published",
   });
 
-  const users = await require("../models/User").find({
-    _id: { $ne: req.user.id },
-  });
-  const notifications = users.map((user) => ({
-    recipient: user._id,
-    sender: req.user.id,
-    type: "system",
-    title: "Tài liệu mới",
-    message: `Tài liệu "${title}" vừa được đăng tải.`,
-    link: `/documents/detail/${document._id}`,
-    relatedModel: "Document",
-    relatedId: document._id,
-    importance: "medium",
-  }));
+  // const users = await require("../models/User").find({ _id: { $ne: req.user.id } });
+  // const notifications = users.map((user) => ({
+  //   recipient: user._id,
+  //   sender: req.user.id,
+  //   type: "system",
+  //   title: "Tài liệu mới",
+  //   message: `Tài liệu "${title}" vừa được đăng tải.`,
+  //   link: `/documents/detail/${document._id}`,
+  //   relatedModel: "Document",
+  //   relatedId: document._id,
+  //   importance: "medium",
+  // }));
 
-  await Notification.insertMany(notifications);
-  notifications.forEach((notif) => {
-    global.io.to(notif.recipient.toString()).emit("newNotification", {
-      _id: notif._id,
-      title: notif.title,
-      message: notif.message,
-      link: notif.link,
-      createdAt: new Date(),
-    });
-  });
+  // await Notification.insertMany(notifications);
+  // notifications.forEach((notif) => {
+  //   global.io.to(notif.recipient.toString()).emit("newNotification", {
+  //     _id: notif._id,
+  //     title: notif.title,
+  //     message: notif.message,
+  //     link: notif.link,
+  //     createdAt: new Date(),
+  //   });
+  // });
 
+  // Debug
+  console.log("FILES:", req.files);
+  console.log("BODY:", req.body);
   res.status(201).json({ success: true, data: document });
 });
 
+// Thêm hàm updateDocument
+exports.updateDocument = asyncHandler(async (req, res, next) => {
+  if (req.user.role !== "admin") {
+    return next(
+      new ErrorResponse("Chỉ admin mới có thể cập nhật tài liệu", 403)
+    );
+  }
+
+  const { id } = req.params;
+  let {
+    title,
+    description,
+    content,
+    educationLevel,
+    grade,
+    subject,
+    documentType,
+    tags,
+  } = req.body;
+
+  const document = await Document.findById(id);
+  if (!document) {
+    return next(new ErrorResponse("Tài liệu không tồn tại", 404));
+  }
+
+  let fileUrl = document.fileUrl;
+  let public_id = document.public_id;
+  let format = document.format;
+  if (req.files?.file) {
+    try {
+      // Xóa file cũ trên Cloudinary
+      if (document.public_id) {
+        await cloudinary.uploader.destroy(document.public_id);
+      }
+      const uploadResult = await cloudinary.uploader.upload(
+        req.files.file[0].tempFilePath,
+        {
+          folder: `documents/${educationLevel}`,
+          resource_type: "auto",
+        }
+      );
+      fileUrl = uploadResult.secure_url;
+      public_id = uploadResult.public_id;
+      format = req.files.file[0].name.split(".").pop().toLowerCase();
+    } catch (err) {
+      return next(new ErrorResponse("Lỗi khi upload file mới", 500));
+    }
+  }
+
+  let thumbnailUrl = document.thumbnail;
+  if (req.files?.thumbnail) {
+    try {
+      const uploadResult = await cloudinary.uploader.upload(
+        req.files.thumbnail[0].tempFilePath,
+        {
+          folder: "thumbnails",
+          resource_type: "image",
+        }
+      );
+      thumbnailUrl = uploadResult.secure_url;
+    } catch (err) {
+      return next(new ErrorResponse("Lỗi khi upload thumbnail mới", 500));
+    }
+  }
+
+  document.title = title || document.title;
+  document.description = description || document.description;
+  document.content = content || document.content;
+  document.fileUrl = fileUrl;
+  document.public_id = public_id;
+  document.format = format;
+  document.thumbnail = thumbnailUrl;
+  document.educationLevel = educationLevel || document.educationLevel;
+  document.grade =
+    educationLevel !== "university" ? grade || document.grade : null;
+  document.subject =
+    educationLevel === "university" ? subject || document.subject : null;
+  document.documentType = documentType || document.documentType;
+  document.tags = tags
+    ? tags.split(",").map((tag) => tag.trim())
+    : document.tags;
+
+  await document.save();
+
+  res.status(200).json({ success: true, data: document });
+});
+
+// Xóa tài liệu
+exports.deleteDocument = asyncHandler(async (req, res, next) => {
+  if (req.user.role !== "admin") {
+    return next(new ErrorResponse("Chỉ admin mới có thể xóa tài liệu", 403));
+  }
+
+  const { id } = req.params;
+  const document = await Document.findById(id);
+  if (!document) {
+    return next(new ErrorResponse("Tài liệu không tồn tại", 404));
+  }
+
+  if (document.public_id) {
+    await cloudinary.uploader.destroy(document.public_id);
+  }
+
+  await Document.findByIdAndDelete(id);
+
+  // Xóa thumbnail nếu có
+  if (document.thumbnail) {
+    const thumbnailPublicId = document.thumbnail.split("/").pop().split(".")[0];
+    try {
+      await cloudinary.uploader.destroy(thumbnailPublicId, {
+        resource_type: "image",
+      });
+    } catch (err) {
+      console.error("Error deleting thumbnail from Cloudinary:", err);
+    }
+  }
+
+  res.status(200).json({ success: true, message: "Xóa tài liệu thành công" });
+});
+
+// Lấy danh sách tài liệu với các bộ lọc và phân trang
 exports.getDocuments = asyncHandler(async (req, res, next) => {
   const {
     educationLevel,
@@ -127,20 +262,16 @@ exports.getDocuments = asyncHandler(async (req, res, next) => {
     dateTo,
   } = req.query;
 
-  let query = { status: "published" };
-  if (educationLevel) {
-    query.educationLevel = educationLevel;
-  } else if (req.path.includes("grade1")) {
-    query.educationLevel = "primary";
-  } else if (req.path.includes("grade2")) {
-    query.educationLevel = "secondary";
-  } else if (req.path.includes("grade3")) {
-    query.educationLevel = "highschool";
-  } else if (req.path.includes("university")) {
-    query.educationLevel = "university";
-  }
+  let query = {};
+  if (educationLevel) query.educationLevel = educationLevel;
   if (grade) query.grade = grade;
-  if (subject) query.subject = subject;
+  if (educationLevel === "university" && subject) {
+    query.subject = subject;
+  } else if (subject) {
+    return next(
+      new ErrorResponse("Bộ lọc môn học chỉ áp dụng cho cấp Đại học", 400)
+    );
+  }
   if (documentType) query.documentType = documentType;
   if (tag) query.tags = { $in: [tag] };
   if (dateFrom)
@@ -175,10 +306,8 @@ exports.getDocumentById = asyncHandler(async (req, res, next) => {
     "uploadedBy",
     "username avatar"
   );
-  if (!document || document.status !== "published") {
-    return next(
-      new ErrorResponse("Tài liệu không tồn tại hoặc chưa được công khai", 404)
-    );
+  if (!document) {
+    return next(new ErrorResponse("Tài liệu không tồn tại", 404));
   }
 
   document.views += 1;
@@ -187,70 +316,64 @@ exports.getDocumentById = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: document });
 });
 
-exports.searchDocuments = asyncHandler(async (req, res, next) => {
-  const {
-    search,
-    educationLevel,
-    grade,
-    subject,
-    documentType,
-    tag,
-    page = 1,
-    limit = 10,
-    dateFrom,
-    dateTo,
-  } = req.query;
+// exports.searchDocuments = asyncHandler(async (req, res, next) => {
+//   const {
+//     search,
+//     educationLevel,
+//     grade,
+//     subject,
+//     documentType,
+//     tag,
+//     page = 1,
+//     limit = 10,
+//     dateFrom,
+//     dateTo,
+//   } = req.query;
 
-  let query = { status: "published" };
-  if (search) {
-    query.$or = [
-      { title: { $regex: search, $options: "i" } },
-      { description: { $regex: search, $options: "i" } },
-      { tags: { $regex: search, $options: "i" } },
-    ];
-  }
-  if (educationLevel) query.educationLevel = educationLevel;
-  if (grade) query.grade = grade;
-  if (subject) query.subject = subject;
-  if (documentType) query.documentType = documentType;
-  if (tag) query.tags = { $in: [tag] };
-  if (dateFrom)
-    query.uploadedAt = { ...query.uploadedAt, $gte: new Date(dateFrom) };
-  if (dateTo)
-    query.uploadedAt = { ...query.uploadedAt, $lte: new Date(dateTo) };
+//   let query = {};
+//   if (search) {
+//     query.$or = [
+//       { title: { $regex: search, $options: "i" } },
+//       { description: { $regex: search, $options: "i" } },
+//       { tags: { $regex: search, $options: "i" } },
+//     ];
+//   }
+//   if (educationLevel) query.educationLevel = educationLevel;
+//   if (grade) query.grade = grade;
+//   if (educationLevel === "university" && subject) {
+//     query.subject = subject;
+//   } else if (subject) {
+//     return next(new ErrorResponse("Bộ lọc môn học chỉ áp dụng cho cấp Đại học", 400));
+//   }
+//   if (documentType) query.documentType = documentType;
+//   if (tag) query.tags = { $in: [tag] };
+//   if (dateFrom)
+//     query.uploadedAt = { ...query.uploadedAt, $gte: new Date(dateFrom) };
+//   if (dateTo)
+//     query.uploadedAt = { ...query.uploadedAt, $lte: new Date(dateTo) };
 
-  const documents = await Document.find(query)
-    .sort({ uploadedAt: -1 })
-    .skip((page - 1) * limit)
-    .limit(Number(limit))
-    .populate("uploadedBy", "username avatar")
-    .select(
-      "title description thumbnail educationLevel grade subject documentType downloads views uploadedAt tags"
-    );
+//   const documents = await Document.find(query)
+//     .sort({ uploadedAt: -1 })
+//     .skip((page - 1) * limit)
+//     .limit(Number(limit))
+//     .populate("uploadedBy", "username avatar")
+//     .select(
+//       "title description thumbnail educationLevel grade subject documentType downloads views uploadedAt tags"
+//     );
 
-  const total = await Document.countDocuments(query);
+//   const total = await Document.countDocuments(query);
 
-  res.status(200).json({
-    success: true,
-    data: documents || [],
-    totalPages: Math.ceil(total / limit),
-    currentPage: Number(page),
-  });
-});
-
+//   res.status(200).json({
+//     success: true,
+//     data: documents || [],
+//     totalPages: Math.ceil(total / limit),
+//     currentPage: Number(page),
+//   });
+// });
 
 exports.getPopularDocuments = asyncHandler(async (req, res, next) => {
   const { limit = 4 } = req.query;
-  let query = { status: "published" };
-  if (req.path.includes("grade1")) {
-    query.educationLevel = "primary";
-  } else if (req.path.includes("grade2")) {
-    query.educationLevel = "secondary";
-  } else if (req.path.includes("grade3")) {
-    query.educationLevel = "highschool";
-  } else if (req.path.includes("university")) {
-    query.educationLevel = "university";
-  }
+  let query = {};
 
   const documents = await Document.find(query)
     .sort({ downloads: -1 })
@@ -261,15 +384,19 @@ exports.getPopularDocuments = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: documents || [] });
 });
 
-
 exports.getRelatedDocuments = asyncHandler(async (req, res, next) => {
   const { educationLevel, subject, excludeId } = req.query;
   let query = {
-    status: "published",
     _id: { $ne: excludeId },
     educationLevel,
   };
-  if (subject) query.subject = subject;
+  if (educationLevel === "university" && subject) {
+    query.subject = subject;
+  } else if (subject) {
+    return next(
+      new ErrorResponse("Bộ lọc môn học chỉ áp dụng cho cấp Đại học", 400)
+    );
+  }
 
   const documents = await Document.find(query)
     .sort({ views: -1 })
@@ -290,10 +417,8 @@ exports.getRelatedDocuments = asyncHandler(async (req, res, next) => {
 
 exports.downloadDocument = asyncHandler(async (req, res, next) => {
   const document = await Document.findById(req.params.id);
-  if (!document || document.status !== "published") {
-    return next(
-      new ErrorResponse("Tài liệu không tồn tại hoặc chưa được công khai", 404)
-    );
+  if (!document) {
+    return next(new ErrorResponse("Tài liệu không tồn tại", 404));
   }
 
   document.downloads += 1;
@@ -311,10 +436,8 @@ exports.convertDocumentFormat = asyncHandler(async (req, res, next) => {
   }
 
   const document = await Document.findById(id);
-  if (!document || document.status !== "published") {
-    return next(
-      new ErrorResponse("Tài liệu không tồn tại hoặc chưa được công khai", 404)
-    );
+  if (!document) {
+    return next(new ErrorResponse("Tài liệu không tồn tại", 404));
   }
 
   let convertedContent;

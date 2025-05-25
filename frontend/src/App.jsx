@@ -21,7 +21,6 @@ import ForgotPassword from "./pages/Auth/ForgotPassword";
 import Profile from "./pages/Profile/Profile";
 import DocumentList from "./pages/Document/DocumentList";
 import DocumentDetail from "./pages/Document/DocumentDetail";
-import CreateDocument from "./pages/Document/CreateDocument";
 import RelatedDocuments from "./pages/Document/RelatedDocuments";
 import NewsPage from "./pages/News/NewsPage";
 import CoursePage from "./pages/Course/CoursePage";
@@ -105,14 +104,6 @@ const AppContent = () => {
             element={<DocumentList educationLevel="university" />}
           />
           <Route path="/documents/:id" element={<DocumentDetail />} />
-          <Route
-            path="/documents/create"
-            element={
-              <ProtectedRoute>
-                <CreateDocument />
-              </ProtectedRoute>
-            }
-          />
           <Route path="/documents/related/:id" element={<RelatedDocuments />} />
           <Route
             path="/news/education"

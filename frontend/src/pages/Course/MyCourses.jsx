@@ -37,7 +37,7 @@ const MyCourses = () => {
   }, [user, token, navigate]);
 
   const handleImageError = (e) => {
-    e.target.src = "/assets/images/default-course.jpg";
+    e.target.src = "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png";
   };
 
   const sectionVariants = {
@@ -79,7 +79,7 @@ const MyCourses = () => {
                 transition={{ duration: 0.3 }}
               >
                 <img
-                  src={course.thumbnail || "/assets/images/default-course.jpg"}
+                  src={course.thumbnail || "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png"}
                   alt={course.title}
                   className="course-image"
                   onError={handleImageError}

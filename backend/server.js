@@ -6,7 +6,7 @@ const rateLimit = require("express-rate-limit")
 const morgan = require("morgan")
 const { Server } = require("socket.io")
 const http = require("http")
-const fileUpload = require("express-fileupload")
+// const fileUpload = require("express-fileupload")
 const errorHandler = require("./middleware/error")
 
 require("dotenv").config({ path: path.resolve(__dirname, ".env") })
@@ -38,7 +38,7 @@ const forgotPasswordLimiter = rateLimit({
 // Middleware
 app.use(cors())
 app.use(express.json())
-app.use(fileUpload())
+// app.use(fileUpload())
 app.use(express.urlencoded({ extended: true }))
 if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"))
@@ -91,7 +91,7 @@ app.use("/study-room",  studyRoomRoutes);
 app.use("/search",  searchRoutes);
 app.use("/bookmarks",  bookmarkRoutes);
 app.use("/comments",  commentRoutes);
-app.use("/notifications",  notificationLimiter, notificationsRoutes);
+app.use("/notifications", notificationsRoutes);
 app.use("/upload",  uploadRoutes);
 
 app.use(errorHandler)

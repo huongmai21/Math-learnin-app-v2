@@ -11,7 +11,7 @@ export const searchResources = async (query) => {
   }
 }
 
-// Hàm tìm kiếm tất cả (cho Navbar)
+// Hàm tìm kiếm tất cả (cho HomePage)
 export const searchAll = async (query) => {
   try {
     const response = await api.get(`/search/all?q=${encodeURIComponent(query)}`)

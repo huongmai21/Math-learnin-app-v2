@@ -2,13 +2,38 @@ import axios from "axios";
 import { toast } from "react-toastify";
 
 const api = axios.create({
-  baseURL: "http://localhost:5000/",
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/",
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Thêm interceptor để tự động thêm token vào header
+// Hàm upload file lên Cloudinary
+export const uploadToCloudinary = async (file, folder = "Home") => {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
+    formData.append("folder", folder);
+
+    const response = await axios.post(
+      `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/auto/upload`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Cloudinary upload error:", error);
+    throw new Error(error.response?.data?.message || "Không thể upload tài liệu");
+  }
+};
+
+// Interceptor cho request
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
@@ -17,22 +42,17 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Thêm interceptor để xử lý lỗi
+// Interceptor cho response
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
+  (response) => response,
   (error) => {
-    // Không hiển thị toast cho một số lỗi cụ thể
     const skipErrorToast = [
-      "/auth/me", // Bỏ qua lỗi khi kiểm tra token
-      "/exams/recommended", // Bỏ qua lỗi khi lấy đề thi gợi ý
-      "/ai/math-question", // Bỏ qua lỗi khi gọi AI
+      "/auth/me",
+      "/exams/recommended",
+      "/ai/math-question",
     ];
 
     const requestUrl = error.config.url;
@@ -46,10 +66,8 @@ api.interceptors.response.use(
       toast.error(errorMessage);
     }
 
-    // Xử lý lỗi 401 (Unauthorized)
     if (error.response && error.response.status === 401) {
-      // Nếu không phải là lỗi khi kiểm tra token, đăng xuất người dùng
-      if (!requestUrl.includes("/api/auth/me")) {
+      if (!requestUrl.includes("/auth/me")) {
         localStorage.removeItem("token");
         window.location.href = "/auth/login";
       }

@@ -1,6 +1,6 @@
 import { Navigate } from "react-router-dom"
 import { useSelector } from "react-redux"
-import Spinner from "../ui/Spinner" // Giả sử bạn có component Spinner
+import Spinner from "../ui/Spinner" 
 
 const ProtectedRoute = ({ children, adminOnly  }) => {
   const { user, isAuthenticated, loading } = useSelector((state) => state.auth)
