@@ -1,4 +1,4 @@
-const Notification = require("../models/Notification")
+const {Notification} = require("../models");
 const asyncHandler = require("../middleware/asyncHandler")
 const ErrorResponse = require("../utils/errorResponse")
 
@@ -91,3 +91,25 @@ exports.getUnreadCount = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({ success: true, count })
 })
+
+exports.createSystemNotification = asyncHandler(async (req, res, next) => {
+  if (req.user.role !== "admin") {
+    return next(new ErrorResponse("Chỉ admin có thể tạo thông báo hệ thống", 403));
+  }
+  const { title, message, recipients, link, importance, expiresAt } = req.body;
+  const notifications = await Notification.insertMany(
+    recipients.map((recipientId) => ({
+      recipient: recipientId,
+      type: "system",
+      title,
+      message,
+      link: link || null,
+      importance,
+      expiresAt,
+    }))
+  );
+  notifications.forEach((notif) => {
+    global.io.to(notif.recipient.toString()).emit("newNotifications", notif);
+  });
+  res.status(201).json({ success: true, data: notifications });
+});

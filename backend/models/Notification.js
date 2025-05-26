@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
+const validator = require("validator");
 
 const notificationSchema = new mongoose.Schema({
   recipient: { type: Schema.Types.ObjectId, ref: "User", required: true },
@@ -19,16 +20,26 @@ const notificationSchema = new mongoose.Schema({
     ],
     required: true,
   },
-  title: { type: String, required: true },
-  message: { type: String, required: true },
+  title: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: [100, "Tiêu đề không được vượt quá 100 ký tự"],
+  },
+  message: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: [500, "Thông báo không được vượt quá 500 ký tự"],
+  },
   link: {
     type: String,
     validate: {
       validator: (v) => {
         if (!v) return true;
-        return /^(https?:\/\/|\/)/.test(v);
+        return validator.isURL(v, { require_protocol: false }) || v.startsWith("/");
       },
-      message: "Link must be a valid URL or relative path",
+      message: "Link phải là URL hợp lệ hoặc đường dẫn tương đối",
     },
   },
   relatedModel: {
@@ -37,6 +48,7 @@ const notificationSchema = new mongoose.Schema({
   },
   relatedId: { type: Schema.Types.ObjectId },
   isRead: { type: Boolean, default: false },
+  isDeleted: { type: Boolean, default: false }, // Thêm soft delete
   createdAt: { type: Date, default: Date.now },
   expiresAt: { type: Date },
   importance: {
@@ -54,10 +66,17 @@ notificationSchema.pre("save", function (next) {
   next();
 });
 
-// Index để tăng tốc độ truy vấn
+// Index
 notificationSchema.index({ recipient: 1, isRead: 1, createdAt: -1 });
+notificationSchema.index({ sender: 1 }); // Thêm index cho sender
 notificationSchema.index({ relatedModel: 1, relatedId: 1 });
 notificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+// Query chỉ lấy các thông báo chưa bị xóa
+notificationSchema.pre(/^find/, function (next) {
+  this.where({ isDeleted: false });
+  next();
+});
 
 const Notification = mongoose.model("Notification", notificationSchema);
 

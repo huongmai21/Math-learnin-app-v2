@@ -26,7 +26,7 @@ export const getAllCourses = async (params = {}) => {
 };
 
 // Lấy khóa học theo ID
-export const getCourseById = async (id) => {
+export const getCourse = async (id) => {
   try {
     const response = await retry(() => api.get(`/courses/${id}`));
     return response.data;
@@ -38,10 +38,16 @@ export const getCourseById = async (id) => {
   }
 };
 
+// Lấy khóa học liên quan
+export const getRelatedCourses = async (courseId) => {
+  const response = await api.get(`/courses/${courseId}/related`);
+  return response.data;
+};
+
 // Tạo khóa học mới
 export const createCourse = async (courseData) => {
   try {
-    const response = await api.post("/courses", courseData);
+    const response = await api.post(`/courses`, courseData);
     return response.data;
   } catch (error) {
     console.error("Error creating course:", error);
@@ -70,6 +76,32 @@ export const deleteCourse = async (id) => {
   } catch (error) {
     console.error("Error deleting course:", error);
     throw new Error(error.response?.data?.message || "Không thể xóa khóa học");
+  }
+};
+
+// Duyệt khóa học
+export const approveCourse = async (courseId) => {
+  try {
+    const response = await api.put(`/courses/${courseId}/approve`);
+    return response.data;
+  } catch (error) {
+    console.error("Error approving course:", error);
+    throw new Error(
+      error.response?.data?.message || "Không thể duyệt khóa học"
+    );
+  }
+};
+
+// Từ chối khóa học
+export const rejectCourse = async (courseId) => {
+  try {
+    const response = await api.put(`/courses/${courseId}/reject`);
+    return response.data;
+  } catch (error) {
+    console.error("Error rejecting course:", error);
+    throw new Error(
+      error.response?.data?.message || "Không thể từ chối khóa học"
+    );
   }
 };
 
@@ -112,6 +144,19 @@ export const unenrollCourse = async (courseId) => {
   }
 };
 
+// Lấy danh sách học viên của khóa học
+export const getCourseEnrollments = async (courseId) => {
+  try {
+    const response = await api.get(`/courses/${courseId}/enrollments`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching course enrollments:", error);
+    throw new Error(
+      error.response?.data?.message || "Không thể lấy danh sách học viên"
+    );
+  }
+};
+
 // Tạo payment intent
 export const createPaymentIntent = async (courseId, amount) => {
   try {
@@ -125,54 +170,49 @@ export const createPaymentIntent = async (courseId, amount) => {
   }
 };
 
-// Lấy bài học của khóa học
-export const getCourseLessons = async (courseId) => {
+// Xác nhận thanh toán
+export const confirmPayment = async (courseId, paymentIntentId) => {
   try {
-    const response = await api.get(`/courses/${courseId}/lessons`);
+    const response = await api.post(`/courses/${courseId}/confirm-payment`, { paymentIntentId });
     return response.data;
   } catch (error) {
-    console.error("Error fetching course lessons:", error);
-    throw new Error(error.response?.data?.message || "Không thể lấy bài học");
-  }
-};
-
-// Tạo bài học mới
-export const createLesson = async (courseId, lessonData) => {
-  try {
-    const response = await api.post(`/courses/${courseId}/lessons`, lessonData);
-    return response.data;
-  } catch (error) {
-    console.error("Error creating lesson:", error);
-    throw new Error(error.response?.data?.message || "Không thể tạo bài học");
-  }
-};
-
-// Cập nhật bài học
-export const updateLesson = async (courseId, lessonId, lessonData) => {
-  try {
-    const response = await api.put(
-      `/courses/${courseId}/lessons/${lessonId}`,
-      lessonData
-    );
-    return response.data;
-  } catch (error) {
-    console.error("Error updating lesson:", error);
+    console.error("Error confirming payment:", error);
     throw new Error(
-      error.response?.data?.message || "Không thể cập nhật bài học"
+      error.response?.data?.message || "Không thể xác nhận thanh toán"
     );
   }
 };
 
-// Xóa bài học
-export const deleteLesson = async (courseId, lessonId) => {
+// Thêm nội dung khóa học
+export const addCourseContent = async (courseId, contentData) => {
   try {
-    const response = await api.delete(
-      `/courses/${courseId}/lessons/${lessonId}`
-    );
+    const response = await api.post(`/courses/${courseId}/contents`, contentData);
     return response.data;
   } catch (error) {
-    console.error("Error deleting lesson:", error);
-    throw new Error(error.response?.data?.message || "Không thể xóa bài học");
+    console.error("Error adding course content:", error);
+    throw new Error(error.response?.data?.message || "Không thể thêm nội dung");
+  }
+};
+
+// Cập nhật nội dung khóa học
+export const updateCourseContent = async (courseId, contentId, contentData) => {
+  try {
+    const response = await api.put(`/courses/${courseId}/contents/${contentId}`, contentData);
+    return response.data;
+  } catch (error) {
+    console.error("Error updating course content:", error);
+    throw new Error(error.response?.data?.message || "Không thể cập nhật nội dung");
+  }
+};
+
+// Xóa nội dung khóa học
+export const deleteCourseContent = async (courseId, contentId) => {
+  try {
+    const response = await api.delete(`/courses/${courseId}/contents/${contentId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting course content:", error);
+    throw new Error(error.response?.data?.message || "Không thể xóa nội dung");
   }
 };
 
@@ -231,16 +271,105 @@ export const getCoursesPress = async ({ limit = 3 } = {}) => {
     return response.data;
   } catch (error) {
     console.error("Error fetching featured courses:", error);
-    if (error.response?.status === 200 && error.response?.data?.data) {
-      return {
-        success: true,
-        count: 0,
-        data: [],
-        message: "Không có khóa học nổi bật",
-      };
+    if (error.name === "AbortError") {
+      return { success: true, count: 0, data: [], message: "Yêu cầu bị hủy" };
     }
     throw new Error("Không thể tải khóa học nổi bật");
   } finally {
     controller.abort();
   }
-};;
+};
+
+// Tạo bài thi cho khóa học
+export const createExamForCourse = async (courseId, examData) => {
+  try {
+    const response = await api.post(`/exams/courses/${courseId}/exams`, examData);
+    return response.data;
+  } catch (error) {
+    console.error("Error creating exam for course:", error);
+    throw new Error(
+      error.response?.data?.message || "Không thể tạo bài thi cho khóa học"
+    );
+  }
+};
+
+// Tham gia bài thi
+export const takeExam = async (examId) => {
+  try {
+    const response = await api.get(`/exams/${examId}/take`);
+    return response.data;
+  } catch (error) {
+    console.error("Error taking exam:", error);
+    throw new Error(
+      error.response?.data?.message || "Không thể tham gia bài thi"
+    );
+  }
+};
+
+// Nôp bài thi
+export const submitExam = async (examId, answers) => {
+  try {
+    const response = await api.post(`/exams/${examId}/submit`, { answers });
+    return response.data;
+  } catch (error) {
+    console.error("Error submitting exam:", error);
+    throw new Error(error.response?.data?.message || "Không thể nộp bài thi");
+  }
+};
+
+//Chấm điểm bài thi
+export const updateSubmissionScore = async (examId, submissionId, grades) => {
+  try {
+    const response = await api.put(`/exams/${examId}/submissions/${submissionId}/grade`, grades);
+    return response.data;
+  } catch (error) {
+    console.error("Error updating submission score:", error);
+    throw new Error(error.response?.data?.message || "Không thể chấm điểm");
+  }
+};
+
+// Lấy danh sách bài thi của khóa học
+export const getExamsByCourse = async (courseId) => {
+  try {
+    const response = await api.get(`/exams/courses/${courseId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching exams for course:", error);
+    throw new Error(
+      error.response?.data?.message || "Không thể lấy danh sách bài thi"
+    );
+  }
+};
+
+// Thêm câu hỏi vào bài thi
+export const addQuestionToExam = async (examId, questionData) => {
+  try {
+    const response = await api.post(`/exams/${examId}/questions`, questionData);
+    return response.data;
+  } catch (error) {
+    console.error("Error adding question to exam:", error);
+    throw new Error(error.response?.data?.message || "Không thể thêm câu hỏi");
+  }
+};
+
+// Cập nhật câu hỏi trong bài thi
+export const updateQuestionInExam = async (examId, questionId, questionData) => {
+  try {
+    const response = await api.put(`/exams/${examId}/questions/${questionId}`, questionData);
+    return response.data;
+  } catch (error) {
+    console.error("Error updating question in exam:", error);
+    throw new Error(error.response?.data?.message || "Không thể cập nhật câu hỏi");
+  }
+};
+
+// Xóa câu hỏi khỏi bài thi
+export const deleteQuestionFromExam = async (examId, questionId) => {
+  try {
+    const response = await api.delete(`/exams/${examId}/questions/${questionId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting question from exam:", error);
+    throw new Error(error.response?.data?.message || "Không thể xóa câu hỏi");
+  }
+};

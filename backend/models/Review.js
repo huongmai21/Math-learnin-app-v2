@@ -20,12 +20,19 @@ const ReviewSchema = new mongoose.Schema({
   comment: {
     type: String,
     trim: true,
+    maxlength: [500, "Bình luận không được vượt quá 500 ký tự"],
   },
+  // isApproved: {
+  //   type: Boolean,
+  //   default: false,
+  // },
   createdAt: {
     type: Date,
     default: Date.now,
   },
 });
+
+ReviewSchema.index({ createdAt: -1 });
 
 const Review = mongoose.model("Review", ReviewSchema);
 

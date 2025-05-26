@@ -1,362 +1,417 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
-import katex from "katex";
-import "katex/dist/katex.min.css";
-import "./Exam.css";
+import { Helmet } from "react-helmet";
+import { createExam } from "../../services/examService";
+import { getAllCourses } from "../../services/courseService";
+import "./CreateExam.css";
 
 const CreateExam = () => {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [educationLevel, setEducationLevel] = useState("");
-  const [subject, setSubject] = useState("");
-  const [duration, setDuration] = useState(60);
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [difficulty, setDifficulty] = useState("easy");
-  const [questions, setQuestions] = useState([
-    {
+  const navigate = useNavigate();
+  const { user, token } = useSelector((state) => state.auth);
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    educationLevel: "primary",
+    subject: "",
+    duration: 60,
+    startTime: "",
+    endTime: "",
+    difficulty: "easy",
+    maxAttempts: 1,
+    isPublic: true,
+    courseId: "",
+  });
+  const [questions, setQuestions] = useState([]);
+  const [newQuestion, setNewQuestion] = useState({
+    questionText: "",
+    questionType: "multiple-choice",
+    options: ["", "", "", ""],
+    correctAnswer: "",
+    score: 1,
+  });
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!user || !token || (user.role !== "teacher" && user.role !== "admin")) {
+      toast.error("Bạn không có quyền tạo đề thi!");
+      navigate("/exams");
+      return;
+    }
+
+    const fetchCourses = async () => {
+      try {
+        const response = await getAllCourses();
+        setCourses(response.data || []);
+      } catch (err) {
+        toast.error("Không thể tải danh sách khóa học!");
+      }
+    };
+    fetchCourses();
+  }, [user, token, navigate]);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: name === "isPublic" ? value === "true" : value,
+    }));
+  };
+
+  const handleQuestionChange = (e) => {
+    const { name, value } = e.target;
+    setNewQuestion((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleOptionChange = (index, value) => {
+    setNewQuestion((prev) => {
+      const newOptions = [...prev.options];
+      newOptions[index] = value;
+      return { ...prev, options: newOptions };
+    });
+  };
+
+  const addQuestion = () => {
+    if (!newQuestion.questionText) {
+      toast.error("Vui lòng nhập nội dung câu hỏi!");
+      return;
+    }
+    if (newQuestion.questionType === "multiple-choice" && !newQuestion.options.every(opt => opt)) {
+      toast.error("Vui lòng nhập đầy đủ các lựa chọn!");
+      return;
+    }
+    if (!newQuestion.correctAnswer) {
+      toast.error("Vui lòng chọn đáp án đúng!");
+      return;
+    }
+    setQuestions((prev) => [...prev, { ...newQuestion, id: Date.now() }]);
+    setNewQuestion({
       questionText: "",
       questionType: "multiple-choice",
       options: ["", "", "", ""],
       correctAnswer: "",
-      images: [],
-      preview: "",
-    },
-  ]);
-  const navigate = useNavigate();
-
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
-  useEffect(() => {
-    if (!user || !["admin", "teacher"].includes(user.role)) {
-      toast.error("Bạn không có quyền truy cập trang này");
-      navigate("/exams");
-    }
-  }, [user, navigate]);
-
-  const addQuestion = () => {
-    setQuestions([
-      ...questions,
-      {
-        questionText: "",
-        questionType: "multiple-choice",
-        options: ["", "", "", ""],
-        correctAnswer: "",
-        images: [],
-        preview: "",
-      },
-    ]);
+      score: 1,
+    });
   };
 
-  const removeQuestion = (index) => {
-    if (questions.length === 1) {
-      toast.error("Phải có ít nhất 1 câu hỏi!");
-      return;
-    }
-    setQuestions(questions.filter((_, i) => i !== index));
-  };
-
-  const updateQuestion = (index, field, value, optionIndex = null) => {
-    const newQuestions = [...questions];
-    if (field === "options") {
-      newQuestions[index].options[optionIndex] = value;
-      if (
-        newQuestions[index].questionType === "multiple-choice" &&
-        newQuestions[index].correctAnswer &&
-        !newQuestions[index].options.includes(newQuestions[index].correctAnswer)
-      ) {
-        newQuestions[index].correctAnswer = value;
-      }
-    } else if (field === "questionText") {
-      newQuestions[index][field] = value;
-      try {
-        const html = katex.renderToString(value, {
-          throwOnError: false,
-          displayMode: false,
-        });
-        newQuestions[index].preview = html;
-      } catch (error) {
-        newQuestions[index].preview = value;
-      }
-    } else {
-      newQuestions[index][field] = value;
-    }
-    setQuestions(newQuestions);
-  };
-
-  const handleImageUpload = async (index, e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append("image", file);
-
-    try {
-      const response = await fetch("http://localhost:5000/upload", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await response.json();
-      if (data.success) {
-        const newQuestions = [...questions];
-        newQuestions[index].images.push(data.imageUrl);
-        setQuestions(newQuestions);
-      } else {
-        toast.error("Không thể tải lên hình ảnh!");
-      }
-    } catch (error) {
-      toast.error("Lỗi khi tải lên hình ảnh!");
-    }
+  const removeQuestion = (id) => {
+    setQuestions((prev) => prev.filter((q) => q.id !== id));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    const token = localStorage.getItem("token");
+    if (questions.length === 0) {
+      toast.error("Vui lòng thêm ít nhất một câu hỏi!");
+      return;
+    }
+    setLoading(true);
     try {
-      const response = await fetch("http://localhost:5000/exams/create", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          title,
-          description,
-          educationLevel,
-          subject,
-          duration,
-          startTime,
-          endTime,
-          difficulty,
-          questions,
-        }),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        toast.success("Tạo bài thi thành công!");
-        navigate("/exams");
-      } else {
-        toast.error(data.message || "Lỗi khi tạo bài thi");
-      }
+      const examData = {
+        ...formData,
+        startTime: new Date(formData.startTime).toISOString(),
+        endTime: new Date(formData.endTime).toISOString(),
+        questions,
+      };
+      await createExam(examData);
+      toast.success("Tạo đề thi thành công!");
+      navigate("/exams");
     } catch (err) {
-      console.error(err);
-      toast.error("Lỗi server");
+      setError(err?.message || "Tạo đề thi thất bại!");
+      toast.error(err?.message || "Tạo đề thi thất bại!");
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (!user || !["admin", "teacher"].includes(user.role)) {
-    return null;
+  if (loading) {
+    return <div className="loading">Đang tải...</div>;
+  }
+
+  if (error) {
+    return <div className="error">{error}</div>;
   }
 
   return (
     <div className="create-exam">
-      <h1>Tạo Bài Thi</h1>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>Tiêu đề:</label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label>Mô tả:</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-        </div>
-        <div>
-          <label>Cấp học:</label>
-          <select
-            value={educationLevel}
-            onChange={(e) => setEducationLevel(e.target.value)}
-            required
-          >
-            <option value="">Chọn cấp học</option>
-            {[...Array(12).keys()].map((i) => (
-              <option key={i + 1} value={`grade${i + 1}`}>
-                Lớp {i + 1}
-              </option>
-            ))}
-            <option value="university">Đại học</option>
-          </select>
-        </div>
-        <div>
-          <label>Môn học:</label>
-          <select
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            required
-          >
-            <option value="">Chọn môn học</option>
-            {educationLevel === "university" ? (
-              <>
-                <option value="advanced_math">Toán cao cấp</option>
-                <option value="calculus">Giải tích</option>
-                <option value="algebra">Đại số</option>
-                <option value="probability_statistics">Xác suất thống kê</option>
-                <option value="differential_equations">Phương trình vi phân</option>
-              </>
-            ) : (
-              <option value="math">Toán</option>
-            )}
-          </select>
-        </div>
-        <div>
-          <label>Thời gian làm bài (phút):</label>
-          <input
-            type="number"
-            value={duration}
-            onChange={(e) => setDuration(Number(e.target.value))}
-            min="1"
-            required
-          />
-        </div>
-        <div>
-          <label>Thời gian bắt đầu:</label>
-          <input
-            type="datetime-local"
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label>Thời gian kết thúc:</label>
-          <input
-            type="datetime-local"
-            value={endTime}
-            onChange={(e) => setEndTime(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label>Độ khó:</label>
-          <select
-            value={difficulty}
-            onChange={(e) => setDifficulty(e.target.value)}
-            required
-          >
-            <option value="easy">Dễ</option>
-            <option value="medium">Trung bình</option>
-            <option value="hard">Khó</option>
-          </select>
-        </div>
-        <h3>Câu hỏi</h3>
-        {questions.map((q, index) => (
-          <div key={index} className="question-block">
-            <label>Câu hỏi (hỗ trợ LaTeX):</label>
+      <Helmet>
+        <title>FunMath - Tạo đề thi mới</title>
+        <meta name="description" content="Tạo đề thi mới cho học sinh hoặc khóa học." />
+      </Helmet>
+      <div className="exam-container">
+        <Link to="/exams" className="back-link">
+          <i className="fas fa-arrow-left"></i> Quay lại danh sách đề thi
+        </Link>
+        <h2>Tạo đề thi mới</h2>
+        <form onSubmit={handleSubmit} className="exam-form">
+          <div className="form-group">
+            <label>Tiêu đề</label>
             <input
               type="text"
-              value={q.questionText}
-              onChange={(e) =>
-                updateQuestion(index, "questionText", e.target.value)
-              }
+              name="title"
+              value={formData.title}
+              onChange={handleInputChange}
               required
-              placeholder="Ví dụ: $x^2 + y^2 = 1$"
             />
-            <div className="preview">
-              <label>Xem trước:</label>
-              <div
-                dangerouslySetInnerHTML={{ __html: q.preview || q.questionText }}
-              />
-            </div>
-            <label>Tải lên hình ảnh minh họa:</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => handleImageUpload(index, e)}
+          </div>
+          <div className="form-group">
+            <label>Mô tả</label>
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
             />
-            {q.images.length > 0 && (
-              <div className="uploaded-images">
-                {q.images.map((img, i) => (
-                  <img key={i} src={img} alt={`Hình minh họa ${i}`} width="100" />
-                ))}
-              </div>
-            )}
-            <label>Loại câu hỏi:</label>
+          </div>
+          <div className="form-group">
+            <label>Cấp học</label>
             <select
-              value={q.questionType}
-              onChange={(e) =>
-                updateQuestion(index, "questionType", e.target.value)
-              }
+              name="educationLevel"
+              value={formData.educationLevel}
+              onChange={handleInputChange}
             >
-              <option value="multiple-choice">Trắc nghiệm</option>
-              <option value="true-false">Đúng/Sai</option>
-              <option value="fill-in">Điền khuyết</option>
-              <option value="essay">Tự luận</option>
-              <option value="math-equation">Nhập công thức toán</option>
+              <option value="primary">Tiểu học</option>
+              <option value="secondary">THCS</option>
+              <option value="highschool">THPT</option>
+              <option value="university">Đại học</option>
             </select>
-            {q.questionType === "multiple-choice" && (
-              <>
-                <label>Lựa chọn:</label>
-                {q.options.map((option, i) => (
+          </div>
+          <div className="form-group">
+            <label>Môn học</label>
+            <select
+              name="subject"
+              value={formData.subject}
+              onChange={handleInputChange}
+            >
+              <option value="">Chọn môn học</option>
+              <option value="math">Toán</option>
+              <option value="advanced_math">Toán Nâng Cao</option>
+              <option value="calculus">Giải Tích</option>
+              <option value="algebra">Đại Số</option>
+              <option value="probability_statistics">Xác Suất & Thống Kê</option>
+              <option value="differential_equations">Phương Trình Vi Phân</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Thời gian (phút)</label>
+            <input
+              type="number"
+              name="duration"
+              value={formData.duration}
+              onChange={handleInputChange}
+              min="1"
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Thời gian bắt đầu</label>
+            <input
+              type="datetime-local"
+              name="startTime"
+              value={formData.startTime}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Thời gian kết thúc</label>
+            <input
+              type="datetime-local"
+              name="endTime"
+              value={formData.endTime}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Độ khó</label>
+            <select
+              name="difficulty"
+              value={formData.difficulty}
+              onChange={handleInputChange}
+            >
+              <option value="easy">Dễ</option>
+              <option value="medium">Trung bình</option>
+              <option value="hard">Khó</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Số lượt làm tối đa</label>
+            <input
+              type="number"
+              name="maxAttempts"
+              value={formData.maxAttempts}
+              onChange={handleInputChange}
+              min="1"
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Loại đề thi</label>
+            <select
+              name="isPublic"
+              value={formData.isPublic}
+              onChange={handleInputChange}
+            >
+              <option value={true}>Công khai</option>
+              <option value={false}>Dành cho khóa học</option>
+            </select>
+          </div>
+          {!formData.isPublic && (
+            <div className="form-group">
+              <label>Chọn khóa học</label>
+              <select
+                name="courseId"
+                value={formData.courseId}
+                onChange={handleInputChange}
+                required={!formData.isPublic}
+              >
+                <option value="">Chọn khóa học</option>
+                {courses.map((course) => (
+                  <option key={course._id} value={course._id}>
+                    {course.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="question-section">
+            <h3>Thêm câu hỏi</h3>
+            <div className="question-form">
+              <div className="form-group">
+                <label>Nội dung câu hỏi</label>
+                <textarea
+                  name="questionText"
+                  value={newQuestion.questionText}
+                  onChange={handleQuestionChange}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Loại câu hỏi</label>
+                <select
+                  name="questionType"
+                  value={newQuestion.questionType}
+                  onChange={handleQuestionChange}
+                >
+                  <option value="multiple-choice">Trắc nghiệm</option>
+                  <option value="true-false">Đúng/Sai</option>
+                  <option value="fill-in">Điền vào chỗ trống</option>
+                  <option value="essay">Tự luận</option>
+                </select>
+              </div>
+              {newQuestion.questionType === "multiple-choice" && (
+                <div className="form-group">
+                  <label>Lựa chọn</label>
+                  {newQuestion.options.map((option, index) => (
+                    <input
+                      key={index}
+                      type="text"
+                      value={option}
+                      onChange={(e) => handleOptionChange(index, e.target.value)}
+                      placeholder={`Lựa chọn ${index + 1}`}
+                      required
+                    />
+                  ))}
+                </div>
+              )}
+              <div className="form-group">
+                <label>Đáp án đúng</label>
+                {newQuestion.questionType === "multiple-choice" ? (
+                  <select
+                    name="correctAnswer"
+                    value={newQuestion.correctAnswer}
+                    onChange={handleQuestionChange}
+                  >
+                    <option value="">Chọn đáp án đúng</option>
+                    {newQuestion.options.map((_, index) => (
+                      <option key={index} value={index}>
+                        Lựa chọn {index + 1}
+                      </option>
+                    ))}
+                  </select>
+                ) : newQuestion.questionType === "true-false" ? (
+                  <select
+                    name="correctAnswer"
+                    value={newQuestion.correctAnswer}
+                    onChange={handleQuestionChange}
+                  >
+                    <option value="">Chọn đáp án đúng</option>
+                    <option value="true">Đúng</option>
+                    <option value="false">Sai</option>
+                  </select>
+                ) : (
                   <input
-                    key={i}
                     type="text"
-                    value={option}
-                    onChange={(e) =>
-                      updateQuestion(index, "options", e.target.value, i)
-                    }
-                    placeholder={`Lựa chọn ${i + 1}`}
+                    name="correctAnswer"
+                    value={newQuestion.correctAnswer}
+                    onChange={handleQuestionChange}
                     required
                   />
-                ))}
-                <label>Đáp án đúng:</label>
+                )}
+              </div>
+              <div className="form-group">
+                <label>Điểm</label>
                 <input
-                  type="text"
-                  value={q.correctAnswer}
-                  onChange={(e) =>
-                    updateQuestion(index, "correctAnswer", e.target.value)
-                  }
+                  type="number"
+                  name="score"
+                  value={newQuestion.score}
+                  onChange={handleQuestionChange}
+                  min="1"
                   required
                 />
-              </>
-            )}
-            {q.questionType === "true-false" && (
-              <>
-                <label>Đáp án đúng:</label>
-                <select
-                  value={q.correctAnswer}
-                  onChange={(e) =>
-                    updateQuestion(index, "correctAnswer", e.target.value)
-                  }
-                  required
-                >
-                  <option value="true">Đúng</option>
-                  <option value="false">Sai</option>
-                </select>
-              </>
-            )}
-            {(q.questionType === "fill-in" || q.questionType === "essay" || q.questionType === "math-equation") && (
-              <>
-                <label>Đáp án đúng:</label>
-                <input
-                  type="text"
-                  value={q.correctAnswer}
-                  onChange={(e) =>
-                    updateQuestion(index, "correctAnswer", e.target.value)
-                  }
-                  required
-                  placeholder={q.questionType === "math-equation" ? "Ví dụ: $x = 5$" : ""}
-                />
-              </>
-            )}
-            <button type="button" onClick={() => removeQuestion(index)}>
-              Xóa câu hỏi
-            </button>
+              </div>
+              <button
+                type="button"
+                className="add-question-button"
+                onClick={addQuestion}
+              >
+                Thêm câu hỏi
+              </button>
+            </div>
+            <div className="question-list">
+              {questions.map((question, index) => (
+                <div key={question.id} className="question-item">
+                  <h4>Câu {index + 1}: {question.questionText}</h4>
+                  <p>Loại: {question.questionType === "multiple-choice" ? "Trắc nghiệm" : 
+                            question.questionType === "true-false" ? "Đúng/Sai" : 
+                            question.questionType === "fill-in" ? "Điền vào chỗ trống" : "Tự luận"}</p>
+                  {question.questionType === "multiple-choice" && (
+                    <ul>
+                      {question.options.map((opt, i) => (
+                        <li key={i}>{opt} {question.correctAnswer == i && "(Đúng)"}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {question.questionType !== "multiple-choice" && (
+                    <p>Đáp án đúng: {question.correctAnswer}</p>
+                  )}
+                  <p>Điểm: {question.score}</p>
+                  <button
+                    type="button"
+                    className="remove-question-button"
+                    onClick={() => removeQuestion(question.id)}
+                  >
+                    Xóa
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
-        ))}
-        <button type="button" onClick={addQuestion}>
-          Thêm câu hỏi
-        </button>
-        <button type="submit">Tạo bài thi</button>
-      </form>
+          <div className="form-actions">
+            <button type="submit" className="submit-button" disabled={loading}>
+              {loading ? "Đang tạo..." : "Tạo đề thi"}
+            </button>
+            <Link to="/exams" className="cancel-button">
+              Hủy
+            </Link>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };

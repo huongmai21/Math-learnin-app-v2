@@ -1,22 +1,19 @@
 const asyncHandler = require("../middleware/asyncHandler");
 const ErrorResponse = require("../utils/errorResponse");
-const Score = require("../models/Score");
-const Bookmark = require("../models/Bookmark");
-const Post = require("../models/Post");
-const Course = require("../models/Course");
-const Exam = require("../models/Exam");
+const {Post, Bookmark} = require("../models");
+
 
 exports.getScores = asyncHandler(async (req, res, next) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
 
-  const scores = await Score.find({ userId: req.user.id })
+  const scores = await ExamResult.find({ userId: req.user.id })
     .populate("examId", "title")
     .populate("courseId", "title")
     .skip(skip)
     .limit(limit);
-  const total = await Score.countDocuments({ userId: req.user.id });
+  const total = await ExamResult.countDocuments({ userId: req.user.id });
 
   res.status(200).json({
     success: true,
@@ -35,24 +32,6 @@ exports.getPosts = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: posts || [] });
 });
 
-exports.getCourses = asyncHandler(async (req, res, next) => {
-  const { role } = req.user;
-  let courses = [];
-  if (role === "student") {
-    courses = await Course.find({ students: req.user.id }).populate(
-      "instructorId",
-      "username"
-    );
-  } else if (role === "teacher" || role === "admin") {
-    courses = await Course.find({ instructorId: req.user.id }).populate(
-      "students",
-      "username"
-    );
-  } else {
-    return next(new ErrorResponse("Vai trò không hợp lệ", 400));
-  }
-  res.status(200).json({ success: true, data: courses });
-});
 
 exports.addBookmark = asyncHandler(async (req, res, next) => {
   const { title, type, url } = req.body;
@@ -82,58 +61,29 @@ exports.createPost = asyncHandler(async (req, res, next) => {
   res.status(201).json({ success: true, data: post });
 });
 
-exports.enrollCourse = asyncHandler(async (req, res, next) => {
-  const { courseId } = req.body;
-  if (!courseId) {
-    return next(new ErrorResponse("Thiếu courseId", 400));
-  }
-  const course = await Course.findById(courseId);
-  if (!course) {
-    return next(new ErrorResponse("Khóa học không tồn tại", 404));
-  }
-  if (!course.students.includes(req.user.id)) {
-    course.students.push(req.user.id);
-    await course.save();
-  }
-  res
-    .status(200)
-    .json({ success: true, message: "Đăng ký khóa học thành công" });
-});
 
-exports.createCourse = asyncHandler(async (req, res, next) => {
-  const { title, description, price } = req.body;
-  if (!title || !description) {
-    return next(new ErrorResponse("Thiếu thông tin cần thiết", 400));
-  }
-  const course = await Course.create({
-    title,
-    description,
-    price: price || 0,
-    instructorId: req.user.id,
-  });
-  res.status(201).json({ success: true, data: course });
-});
+
 
 exports.getParticipatedExams = asyncHandler(async (req, res, next) => {
   if (req.user.role !== "student") {
     return next(new ErrorResponse("Chỉ học sinh có thể xem đề thi đã tham gia", 403));
   }
-  const scores = await Score.find({ userId: req.user.id }).populate("examId");
+  const scores = await ExamResult.find({ userId: req.user.id }).populate("examId");
   const participatedExams = scores
-    .filter((score) => score.examId) // Kiểm tra score.examId tồn tại
+    .filter((score) => ExamResult.examId) // Kiểm tra ExamResult.examId tồn tại
     .map((score) => ({
-      _id: score.examId._id,
-      title: score.examId.title,
-      subject: score.examId.subject || "Không xác định",
-      score: score.score,
-      startTime: score.examId.startTime,
-      endTime: score.examId.endTime,
+      _id: ExamResult.examId._id,
+      title: ExamResult.examId.title,
+      subject: ExamResult.examId.subject || "Không xác định",
+      score: ExamResult.score,
+      startTime: ExamResult.examId.startTime,
+      endTime: ExamResult.examId.endTime,
     }));
   res.status(200).json({ success: true, data: participatedExams || [] });
 });
 
 exports.getAchievements = asyncHandler(async (req, res, next) => {
-  const scores = await Score.find({ userId: req.user.id });
+  const scores = await ExamResult.find({ userId: req.user.id });
   const totalExams = scores.length;
   const perfectScores = scores.filter((s) => s.score === 100).length;
 

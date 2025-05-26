@@ -1,5 +1,3 @@
-const Document = require("../models/Document");
-// const Notification = require("../models/Notification");
 const cloudinary = require("../config/cloudinary");
 const asyncHandler = require("../middleware/asyncHandler");
 const ErrorResponse = require("../utils/errorResponse");
@@ -7,6 +5,7 @@ const fs = require("fs").promises;
 const path = require("path");
 const mammoth = require("mammoth");
 const TurndownService = require("turndown");
+const {Document, Notification} = require("../models");
 
 exports.createDocument = asyncHandler(async (req, res, next) => {
   if (req.user.role !== "admin") {

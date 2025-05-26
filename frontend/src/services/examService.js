@@ -2,8 +2,19 @@ import api from './api';
 
 // Lấy danh sách tất cả đề thi (có phân trang, lọc, tìm kiếm)
 export const getAllExams = async (params = {}) => {
-  const response = await api.get('/exams', { params });
-  return response.data;
+  try {
+    const response = await api.get("/exams", { params });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching exams:", error);
+    const message =
+      error.response?.status === 404
+        ? "Không tìm thấy bài thi"
+        : error.response?.status === 403
+        ? "Bạn không có quyền truy cập"
+        : "Không thể lấy danh sách bài thi";
+    throw new Error(error.response?.data?.message || message);
+  }
 };
 
 // Quan tâm một đề thi
@@ -54,6 +65,19 @@ export const getMyExams = async (authorId) => {
   return response.data;
 };
 
+// Lấy danh sách câu hỏi của bài thi
+export const getExamQuestions = async (params = {}) => {
+  try {
+    const response = await api.get("/exams/questions", { params });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching exam questions:", error);
+    throw new Error(
+      error.response?.data?.message || "Không thể lấy danh sách câu hỏi"
+    );
+  }
+};
+
 // Nộp bài thi
 export const submitExam = async (examId, answers) => {
   const response = await api.post(`/exams/${examId}/submit`, { answers });
@@ -70,4 +94,19 @@ export const getGlobalLeaderboard = async (params = {}) => {
 export const getExamLeaderboard = async (examId) => {
   const response = await api.get(`/exams/${examId}/leaderboard`);
   return response.data;
+};
+
+// Lấy danh sách bài nôp của một đề thi
+export const getExamSubmissions = async (examId) => {
+  const response = await api.get(`/exams/${examId}/submissions`);
+  return response.data;
+};
+
+export const handleReminder = async (examId) => {
+  try {
+    const response = await api.post(`/exams/${examId}/reminder`);
+    toast.success("Đã bật nhắc nhở cho bài thi!");
+  } catch (err) {
+    toast.error(err.response?.data?.message || "Không thể bật nhắc nhở!");
+  }
 };

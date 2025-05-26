@@ -1,4 +1,5 @@
-const mongoose = require("mongoose")
+const mongoose = require("mongoose");
+const validator = require("validator");
 
 const ContentSchema = new mongoose.Schema({
   title: {
@@ -13,8 +14,13 @@ const ContentSchema = new mongoose.Schema({
   },
   url: { type: String, required: [true, "Vui lòng nhập URL nội dung"] },
   isPreview: { type: Boolean, default: false },
+  platform: {
+    type: String,
+    enum: ["cloudinary", "youtube"],
+    default: "cloudinary",
+  },
   createdAt: { type: Date, default: Date.now },
-})
+});
 
 const CourseSchema = new mongoose.Schema({
   title: {
@@ -34,11 +40,12 @@ const CourseSchema = new mongoose.Schema({
   },
   thumbnail: {
     type: String,
-    default: "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png",
+    default:
+      "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png",
     validate: {
       validator: (v) => {
-        if (!v) return true
-        return /^(https?:\/\/|\/)/.test(v)
+        if (!v) return true;
+        return /^(https?:\/\/|\/)/.test(v);
       },
       message: "Thumbnail must be a valid URL or relative path",
     },
@@ -53,21 +60,37 @@ const CourseSchema = new mongoose.Schema({
     ref: "User",
     required: true,
   },
-  students: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  // students: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   status: {
     type: String,
     enum: ["pending", "approved", "rejected"],
     default: "pending",
   },
+  // isPublished: { type: Boolean, default: true },
   contents: [ContentSchema],
   createdAt: { type: Date, default: Date.now },
-})
+  lastUpdated: { type: Date, default: Date.now },
+  averageRating: { type: Number, default: 0 },
+  reviewCount: { type: Number, default: 0 },
+});
+
+ContentSchema.path("url").validate({
+  validator: function (v) {
+    return /^(https?:\/\/|\/)/.test(v);
+  },
+  message: "URL nội dung không hợp lệ",
+});
+
+CourseSchema.pre("save", function (next) {
+  this.lastUpdated = Date.now();
+  next();
+});
 
 // Index để tối ưu truy vấn
-CourseSchema.index({ instructorId: 1 })
-CourseSchema.index({ category: 1 })
-CourseSchema.index({ status: 1 })
+CourseSchema.index({ instructorId: 1 });
+CourseSchema.index({ category: 1 });
+CourseSchema.index({ status: 1 });
 
-const Course = mongoose.model("Course", CourseSchema)
+const Course = mongoose.model("Course", CourseSchema);
 
-module.exports = Course
+module.exports = Course;

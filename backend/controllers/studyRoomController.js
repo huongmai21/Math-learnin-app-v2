@@ -1,8 +1,6 @@
-const StudyRoom = require("../models/StudyRoom")
-const User = require("../models/User")
-const Notification = require("../models/Notification")
 const asyncHandler = require("../middleware/asyncHandler")
 const ErrorResponse = require("../utils/errorResponse")
+const {Notification, User, StudyRoom} = require("../models");
 
 // Tạo phòng học nhóm mới
 exports.createStudyRoom = asyncHandler(async (req, res, next) => {

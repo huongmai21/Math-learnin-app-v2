@@ -9,9 +9,9 @@ export const addBookmark = async (referenceType, referenceId) => {
 };
 
 export const removeBookmark = async (referenceType, referenceId) => {
-  const response = await api.delete("/bookmarks", {
-    data: { referenceType, referenceId },
-  });
+  const response = await api.delete(
+    `/bookmarks/${referenceType}/${referenceId}`
+  );
   return response.data;
 };
 

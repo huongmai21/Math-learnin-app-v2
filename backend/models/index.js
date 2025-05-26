@@ -1,30 +1,25 @@
-// models/index.js
-import User from './User.js';
-import News from './News.js';
-import Article from './Article.js';
-import Document from './Document.js';
-import Exam from './Exam.js';
-import ExamQuestion from './ExamQuestion.js';
-import ExamResult from './ExamResult.js';
-import Post from './Post.js';
-import Comment from './Comment.js';
-import StudyRoom from './StudyRoom.js';
-import Message from './Message.js';
-import Course from './Course.js';
-import Notification from './Notification.js';
-import Follow from './Follow.js';
-import UserActivity from './UserActivity';
-import Bookmark from './Bookmark.js';
-import Review from './Review.js';
-import Score from './Score';
-import Enrollment from "./Enrollment.js";
-import Bookmark from "./Bookmark.js";
-import Question from "./Question.js";
+const User = require('./User');
+const News = require('./News');
+const Document = require('./Document');
+const Exam = require('./Exam');
+const ExamQuestion = require('./ExamQuestion');
+const ExamResult = require('./ExamResult');
+const Post = require('./Post');
+const Comment = require('./Comment');
+const StudyRoom = require('./StudyRoom');
+const Message = require('./Message');
+const Course = require('./Course');
+const Notification = require('./Notification');
+const Follow = require('./Follow');
+const UserActivity = require('./UserActivity');
+const Bookmark = require('./Bookmark');
+const Review = require('./Review');
+const Enrollment = require('./Enrollment');
+const Question = require('./Question');
 
-export {
+module.exports = {
   User,
   News,
-  Article,
   Document,
   Exam,
   ExamQuestion,
@@ -39,8 +34,6 @@ export {
   UserActivity,
   Bookmark,
   Review,
-  Score,
-  Bookmark,
   Enrollment,
-  Question
+  Question,
 };

@@ -1,4 +1,4 @@
-/* Exam.css - Cải thiện giao diện */
+
 .exam-page {
   max-width: 1200px;
   margin: 0 auto;
@@ -54,6 +54,30 @@
   outline: none;
   border-color: #ff6f61;
   box-shadow: 0 0 0 2px rgba(255, 111, 97, 0.2);
+}
+
+.leaderboard-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.3s;
+  margin-top: 10px;
+}
+
+.leaderboard-button:hover {
+  background-color: #218838;
+  transform: translateY(-2px);
 }
 
 .search-icon {
@@ -593,6 +617,17 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.difficulty-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  color: white;
+}
+.difficulty-badge.easy { background-color: #28a745; }
+.difficulty-badge.medium { background-color: #ffc107; }
+.difficulty-badge.hard { background-color: #dc3545; }
 
 @media (max-width: 768px) {
   .exam-page {

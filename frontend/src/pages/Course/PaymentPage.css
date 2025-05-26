@@ -236,6 +236,40 @@
   color: #e74c3c;
 }
 
+.payment-summary {
+  background: #ffffff;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.payment-summary h4 {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.payment-summary p {
+  font-size: 16px;
+  color: #333;
+  margin-bottom: 5px;
+}
+
+.cancel-button {
+  width: 100%;
+  padding: 12px;
+  background: #ccc;
+  color: #2c3e50;
+  border: none;
+  border-radius: 25px;
+  font-size: 16px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.cancel-button:hover {
+  background: #bbb;
+}
+
 @media (max-width: 768px) {
   .course-info {
     flex-direction: column;

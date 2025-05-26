@@ -1,10 +1,7 @@
-const Bookmark = require("../models/Bookmark");
-const Post = require("../models/Post");
-const Document = require("../models/Document");
-const News = require("../models/News");
-const Course = require("../models/Course");
 const asyncHandler = require("../middleware/asyncHandler");
 const ErrorResponse = require("../utils/errorResponse");
+const {Bookmark, Post, Document, News, Course} = require("../models");
+
 
 exports.addBookmark = asyncHandler(async (req, res, next) => {
   const { referenceType, referenceId } = req.body;
@@ -60,33 +57,24 @@ exports.addBookmark = asyncHandler(async (req, res, next) => {
 
 exports.removeBookmark = asyncHandler(async (req, res, next) => {
   const { referenceType, referenceId } = req.params;
-
   if (!["post", "document", "news", "course"].includes(referenceType)) {
     return next(new ErrorResponse("Loại tài nguyên không hợp lệ", 400));
   }
-
-  const bookmark = await Bookmark.findOneAndDelete({
-    user: req.user.id,
-    referenceType,
-    referenceId,
-  });
-
+  const bookmark = await Bookmark.findOneAndUpdate(
+    { user: req.user.id, referenceType, referenceId, isActive: true },
+    { isActive: false },
+    { new: true }
+  );
   if (!bookmark) {
     return next(new ErrorResponse("Bookmark không tồn tại", 404));
   }
-
-  // Emit WebSocket event
   global.io.to(req.user.id).emit("bookmark_notification", {
     message: `Bạn đã bỏ đánh dấu ${referenceType} ${referenceId}`,
     referenceType,
     referenceId,
     action: "remove",
   });
-
-  res.status(200).json({
-    success: true,
-    message: "Đã xóa bookmark",
-  });
+  res.status(200).json({ success: true, message: "Đã xóa bookmark" });
 });
 
 exports.getBookmarks = asyncHandler(async (req, res, next) => {

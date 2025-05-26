@@ -1,6 +1,6 @@
 // Lưu bookmark khóa học của người dùng
 
-const mongoose = require("mongoose")
+const mongoose = require("mongoose");
 
 const EnrollmentSchema = new mongoose.Schema({
   userId: {
@@ -17,11 +17,21 @@ const EnrollmentSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
-})
+  paymentDetails: {
+    paymentIntentId: String,
+    amount: Number,
+    currency: String,
+  },
+  paymentStatus: {
+    type: String,
+    enum: ["pending", "completed", "failed"],
+    default: "pending",
+  },
+});
 
 // Index để tối ưu truy vấn
-EnrollmentSchema.index({ userId: 1, courseId: 1 }, { unique: true })
+EnrollmentSchema.index({ userId: 1, courseId: 1 }, { unique: true });
 
-const Enrollment = mongoose.model("Enrollment", EnrollmentSchema)
+const Enrollment = mongoose.model("Enrollment", EnrollmentSchema);
 
-module.exports = Enrollment
+module.exports = Enrollment;

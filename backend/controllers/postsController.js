@@ -1,10 +1,7 @@
-const Post = require("../models/Post");
-const Comment = require("../models/Comment");
-const User = require("../models/User");
-const Notification = require("../models/Notification");
 const asyncHandler = require("../middleware/asyncHandler");
 const ErrorResponse = require("../utils/errorResponse");
 const cloudinary = require("../config/cloudinary");
+const {Post, Comment, Notification, User} = require("../models");
 
 // Lấy tất cả bài đăng (có phân trang và lọc)
 exports.getPosts = asyncHandler(async (req, res, next) => {

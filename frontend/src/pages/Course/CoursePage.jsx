@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -29,6 +28,7 @@ const CoursePage = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [category, setCategory] = useState("all");
+  const [sortBy, setSortBy] = useState("default");
 
   useEffect(() => {
     const loadCourses = async () => {
@@ -85,8 +85,24 @@ const CoursePage = () => {
     loadBookmarksAndEnrollments();
   }, [user, token]);
 
+  useEffect(() => {
+    let sortedCourses = [...courses];
+    if (sortBy === "price-asc") {
+      sortedCourses.sort((a, b) => a.price - b.price);
+    } else if (sortBy === "price-desc") {
+      sortedCourses.sort((a, b) => b.price - a.price);
+    } else if (sortBy === "popularity") {
+      sortedCourses.sort(
+        (a, b) => (b.enrolledCount || 0) - (a.enrolledCount || 0)
+      );
+    }
+    setFilteredCourses(sortedCourses);
+  }, [courses, sortBy]);
+
   const handleSearch = (query, results) => {
-    const filtered = Array.isArray(results.data?.courses) ? results.data.courses : [];
+    const filtered = Array.isArray(results.data?.courses)
+      ? results.data.courses
+      : [];
     setFilteredCourses(filtered);
     setPage(1);
   };
@@ -117,7 +133,8 @@ const CoursePage = () => {
   };
 
   const handleImageError = (e) => {
-    e.target.src = "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png";
+    e.target.src =
+      "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png";
   };
 
   const sectionVariants = {
@@ -182,7 +199,6 @@ const CoursePage = () => {
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               className="category-filter"
-              aria-label="Lọc theo danh mục"
             >
               <option value="all">Tất cả</option>
               <option value="grade1">Toán cấp 1</option>
@@ -190,14 +206,27 @@ const CoursePage = () => {
               <option value="grade3">Toán cấp 3</option>
               <option value="university">Toán đại học</option>
             </select>
-            {category !== "all" && (
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="category-filter"
+            >
+              <option value="default">Mặc định</option>
+              <option value="price-asc">Giá: Thấp đến cao</option>
+              <option value="price-desc">Giá: Cao đến thấp</option>
+              <option value="popularity">Phổ biến</option>
+            </select>
+            {category !== "all" || sortBy !== "default" ? (
               <button
-                onClick={() => setCategory("all")}
+                onClick={() => {
+                  setCategory("all");
+                  setSortBy("default");
+                }}
                 className="reset-filter-btn"
               >
                 Xóa bộ lọc
               </button>
-            )}
+            ) : null}
           </div>
         </div>
         {error && (
@@ -223,7 +252,10 @@ const CoursePage = () => {
               >
                 <div className="course-image">
                   <img
-                    src={course.thumbnail || "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png"}
+                    src={
+                      course.thumbnail ||
+                      "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png"
+                    }
                     alt={course.title}
                     onError={handleImageError}
                     loading="lazy"
@@ -237,6 +269,10 @@ const CoursePage = () => {
                   <div className="course-meta">
                     <p className="course-price">
                       Giá: {course.price.toLocaleString()} VND
+                    </p>
+                    <p className="course-stats">
+                      {course.duration || "N/A"} giờ | {course.contents?.length || 0}{" "}
+                      bài học
                     </p>
                     {enrolledCourses.includes(course._id) && (
                       <p className="course-status">Đã đăng ký</p>

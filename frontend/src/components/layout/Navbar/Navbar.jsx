@@ -8,8 +8,11 @@ import { toast } from "react-toastify";
 import ThemeContext from "../../../context/ThemeContext";
 import {
   getNotifications,
+  getUnreadCount,
   deleteNotification,
   markNotificationAsRead,
+  initSocket,
+  listenForNotifications,
 } from "../../../services/notificationService";
 import useDropdown from "../../../hooks/useDropdown";
 import "./Navbar.css";
@@ -22,9 +25,10 @@ const Navbar = () => {
   const { theme, toggleTheme } = useContext(ThemeContext);
 
   const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Sử dụng custom hook cho dropdown
+  // Dropdown hooks
   const {
     isOpen: documentsOpen,
     toggle: toggleDocuments,
@@ -47,7 +51,7 @@ const Navbar = () => {
     ref: settingsRef,
   } = useDropdown();
 
-  // Cấu hình menu
+  // Menu items
   const menuItems = [
     {
       title: "Tài liệu",
@@ -81,10 +85,7 @@ const Navbar = () => {
       isDropdown: false,
       requireAuth: false,
     },
-    { title: "Thi đấu", 
-      to: "/exams", 
-      isDropdown: false, 
-      requireAuth: true },
+    { title: "Thi đấu", to: "/exams", isDropdown: false, requireAuth: true },
     {
       title: "Góc học tập",
       to: "/study-corner",
@@ -99,22 +100,46 @@ const Navbar = () => {
     },
   ];
 
-  // Lấy thông báo
+  // Khởi tạo WebSocket và lấy thông báo
   useEffect(() => {
+    if (!isAuthenticated || !user) return;
+
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    // Khởi tạo socket
+    const socket = initSocket(token);
+
+    // Lắng nghe thông báo thời gian thực
+    listenForNotifications(user._id, (notification) => {
+      if (notification.type === "ack") {
+        loadNotifications();
+      } else {
+        setNotifications((prev) => [notification, ...prev]);
+        setUnreadCount((prev) => prev + 1);
+      }
+    });
+
+    // Lấy thông báo và số chưa đọc
     const loadNotifications = async () => {
-      const token = localStorage.getItem("token");
-      if (user && token) {
-        // Chỉ gọi API nếu có user và token
-        try {
-          const response = await getNotifications(user._id);
-          setNotifications(response.data || []);
-        } catch (error) {
-          console.error("Error loading notifications:", error);
-        }
+      try {
+        const [notifResponse, unreadResponse] = await Promise.all([
+          getNotifications(1, 10, false),
+          getUnreadCount(),
+        ]);
+        setNotifications(notifResponse.data || []);
+        setUnreadCount(unreadResponse.count || 0);
+      } catch (error) {
+        toast.error("Không thể tải thông báo!", { position: "top-right" });
       }
     };
+
     loadNotifications();
-  }, [user]);
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [isAuthenticated, user]);
 
   // Đóng menu mobile khi chuyển trang
   useEffect(() => {
@@ -124,22 +149,20 @@ const Navbar = () => {
   // Xử lý đăng xuất
   const handleLogout = () => {
     dispatch(logout());
-    toast.success("Đăng xuất thành công!", {
-      position: "top-right",
-      autoClose: 3000,
-    });
+    toast.success("Đăng xuất thành công!", { position: "top-right" });
     navigate("/auth/login");
   };
 
   // Xử lý xóa thông báo
   const handleDeleteNotification = async (id, e) => {
-    e.stopPropagation(); // Ngăn sự kiện click lan ra ngoài
+    e.stopPropagation();
     try {
       await deleteNotification(id);
-      setNotifications(notifications.filter((notif) => notif._id !== id));
+      setNotifications((prev) => prev.filter((notif) => notif._id !== id));
+      setUnreadCount((prev) => Math.max(0, prev - 1));
       toast.success("Xóa thông báo thành công!", { position: "top-right" });
     } catch (error) {
-      toast.error("Không thể xóa thông báo", { position: "top-right" });
+      toast.error("Không thể xóa thông báo!", { position: "top-right" });
     }
   };
 
@@ -147,14 +170,15 @@ const Navbar = () => {
   const handleMarkAsRead = async (id) => {
     try {
       await markNotificationAsRead(id);
-      setNotifications(
-        notifications.map((notif) =>
+      setNotifications((prev) =>
+        prev.map((notif) =>
           notif._id === id ? { ...notif, isRead: true } : notif
         )
       );
-      navigate("/notifications");
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+      navigate(notifications.find((n) => n._id === id)?.link || "/notifications");
     } catch (error) {
-      console.error("Error marking notification as read:", error);
+      toast.error("Không thể đánh dấu đã đọc!", { position: "top-right" });
     }
   };
 
@@ -185,11 +209,7 @@ const Navbar = () => {
           aria-label="Menu điều hướng"
         >
           {menuItems.map((item, index) => {
-            // Kiểm tra xem mục này có yêu cầu đăng nhập không và người dùng đã đăng nhập chưa
-            if (item.requireAuth && !isAuthenticated) {
-              return null; // Không hiển thị mục này nếu yêu cầu đăng nhập nhưng người dùng chưa đăng nhập
-            }
-
+            if (item.requireAuth && !isAuthenticated) return null;
             return item.isDropdown ? (
               <div
                 key={index}
@@ -240,18 +260,13 @@ const Navbar = () => {
               <img
                 src={user.avatar || defaultAvatar}
                 alt={`Avatar của ${user.username}`}
-                loading="lazy"
                 onError={(e) => (e.target.src = defaultAvatar)}
               />
             </div>
             <span className="profile-username">{user.username}</span>
             {profileOpen && (
               <div className="profile-dropdown" role="menu">
-                <Link
-                  to="/users/profile"
-                  className="dropdown-item"
-                  role="menuitem"
-                >
+                <Link to="/users/profile" className="dropdown-item" role="menuitem">
                   Hồ sơ
                 </Link>
                 {user.role === "student" && (
@@ -273,18 +288,16 @@ const Navbar = () => {
                   </>
                 )}
                 {user.role === "teacher" && (
-                  <>
-                    <Link
-                      to="/courses/my-courses"
-                      className="dropdown-item"
-                      role="menuitem"
-                    >
-                      Khóa học của tôi
-                    </Link>
-                  </>
+                  <Link
+                    to="/courses/my-courses"
+                    className="dropdown-item"
+                    role="menuitem"
+                  >
+                    Khóa học của tôi
+                  </Link>
                 )}
                 {user.role === "admin" && (
-                  <Link to="/admin" className="dropdown-item" role="menuitem">
+                  <Link to="/admin/documents" className="dropdown-item" role="menuitem">
                     Quản lý hệ thống
                   </Link>
                 )}
@@ -306,8 +319,8 @@ const Navbar = () => {
             aria-expanded={notificationsOpen}
           >
             <i className="fa-solid fa-bell notification-icon"></i>
-            {notifications.length > 0 && (
-              <span className="notification-count">{notifications.length}</span>
+            {unreadCount > 0 && (
+              <span className="notification-count">{unreadCount}</span>
             )}
             {notificationsOpen && (
               <div className="notification-dropdown" role="menu">
@@ -315,13 +328,13 @@ const Navbar = () => {
                   notifications.map((notif) => (
                     <div
                       key={notif._id}
-                      className="notification-item"
-                      role="menuitem"
+                      className={`notification-item ${notif.isRead ? "read" : ""}`}
                       onClick={() => handleMarkAsRead(notif._id)}
                     >
-                      <span>{notif.message}</span>
+                      <span className="notification-title">{notif.title}</span>
+                      <p className="notification-text">{notif.message}</p>
                       <span className="notification-time">
-                        {new Date(notif.createdAt).toLocaleTimeString("vi-VN")}
+                        {new Date(notif.createdAt).toLocaleString("vi-VN")}
                       </span>
                       <button
                         className="delete-notification"
@@ -346,11 +359,7 @@ const Navbar = () => {
               aria-expanded={settingsOpen}
             ></i>
             {settingsOpen && (
-              <div
-                className="settings-modal"
-                role="dialog"
-                aria-labelledby="settings-title"
-              >
+              <div className="settings-modal" role="dialog" aria-labelledby="settings-title">
                 <div className="settings-content">
                   <h3 id="settings-title">Cài đặt</h3>
                   <div className="settings-option">
@@ -388,10 +397,10 @@ const Navbar = () => {
         </div>
       ) : (
         <div className="auth-links">
-          <Link to="/auth/login" className="auth-link" aria-label="Đăng nhập">
+          <Link to="/auth/login" className="auth-link">
             Đăng nhập
           </Link>
-          <Link to="/auth/register" className="auth-link" aria-label="Đăng ký">
+          <Link to="/auth/register" className="auth-link">
             Đăng ký
           </Link>
         </div>

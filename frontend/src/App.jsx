@@ -26,14 +26,19 @@ import NewsPage from "./pages/News/NewsPage";
 import CoursePage from "./pages/Course/CoursePage";
 import CourseDetail from "./pages/Course/CourseDetail";
 import MyCourses from "./pages/Course/MyCourses";
+import CreateCourse from "./pages/Course/CreatCourse";
 import EditCourse from "./pages/Course/EditCourse";
 import PaymentPage from "./pages/Course/PaymentPage";
 import StudyCorner from "./pages/StudyCorner/StudyCorner";
 import StudyRoom from "./pages/StudyRoom/StudyRoom";
+// import GradeExam from "./pages/Exams/GradeExam";
 import CreateExam from "./pages/Exams/CreateExam";
 import ExamList from "./pages/Exams/ExamList";
 import TakeExam from "./pages/Exams/TakeExam";
+import Leaderboard from "./pages/Exams/Leaderboard";
 import AdminDashboard from "./pages/Admin/AdminDashboard";
+import AdminCourseManagement from "./pages/Admin/AdminCourseManagement";
+import ExamManagement from "./pages/Admin/ExamManagement";
 import AchievementsPage from "./pages/Achievements/AchievementsPage";
 import MathAIHelper from "./components/ai/MathAIHelper";
 import { ThemeProvider } from "./context/ThemeContext";
@@ -126,7 +131,15 @@ const AppContent = () => {
             }
           />
           <Route
-            path="/courses/edit/:id"
+            path="/courses/create"
+            element={
+              <ProtectedRoute>
+                <CreateCourse />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/courses/edit/:courseId"
             element={
               <ProtectedRoute>
                 <EditCourse />
@@ -150,7 +163,10 @@ const AppContent = () => {
               </ProtectedRoute>
             }
           />
-          <Route path="/exams/:id" element={<TakeExam />} />
+          {/* <Route path="/exams/:examId/grade" element={<GradeExam />} />; */}
+          <Route path="/exams/:examId/take" element={<TakeExam />} />;
+          <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/exams/:examId/leaderboard" element={<Leaderboard />} />
           <Route path="/study-corner" element={<StudyCorner />} />
           <Route
             path="/study-room/:id"
@@ -170,10 +186,50 @@ const AppContent = () => {
             }
           />
           <Route
-            path="/admin"
+            path="/admin/documents"
             element={
               <ProtectedRoute adminOnly>
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/courses"
+            element={
+              <ProtectedRoute adminOnly>
+                <AdminCourseManagement />
+              </ProtectedRoute>
+            }
+          />
+          {/* <Route
+            path="/admin/stats"
+            element={
+              <ProtectedRoute adminOnly>
+                <AdminStats /> 
+              </ProtectedRoute>
+            }
+          /> */}
+          {/* <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute adminOnly>
+                <AdminUsers /> 
+              </ProtectedRoute>
+            }
+          /> */}
+          {/* <Route
+            path="/admin/news"
+            element={
+              <ProtectedRoute adminOnly>
+                <AdminNews /> 
+              </ProtectedRoute>
+            }
+          /> */}
+          <Route
+            path="/admin/exams"
+            element={
+              <ProtectedRoute adminOnly>
+                <ExamManagement /> 
               </ProtectedRoute>
             }
           />

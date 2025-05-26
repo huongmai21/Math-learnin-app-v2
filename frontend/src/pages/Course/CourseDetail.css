@@ -231,7 +231,10 @@
 }
 
 .content-link {
-  color: #2c3e50;
+  color: #f9f9f9;
+  background-color: #ff6f61;
+  border: 2px solid #ff6f61;
+  border-radius: 5px;
   text-decoration: none;
   font-size: 16px;
 }
@@ -353,6 +356,44 @@
 }
 
 .no-results {
+  color: #666;
+}
+
+.content-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 10px;
+  background: #ffffff;
+  border-radius: 5px;
+}
+
+.content-details {
+  padding: 10px;
+  background: #f9f9f9;
+  border-radius: 5px;
+  margin-top: 5px;
+}
+
+.related-courses-section {
+  margin-bottom: 40px;
+}
+
+.related-courses-section .course-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.course-rating {
+  font-size: 16px;
+  color: #ff6f61;
+  margin-bottom: 10px;
+}
+
+.course-stats {
+  font-size: 14px;
   color: #666;
 }
 

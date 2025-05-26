@@ -1,9 +1,5 @@
 const asyncHandler = require("../middleware/asyncHandler");
-const Course = require("../models/Course");
-const News = require("../models/News");
-const Document = require("../models/Document");
-const Exam = require("../models/Exam");
-const User = require("../models/User");
+const {Exam, Document, News, Course, User} = require("../models");
 
 exports.searchResources = asyncHandler(async (req, res, next) => {
   const { q, type } = req.query;

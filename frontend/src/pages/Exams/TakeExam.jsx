@@ -1,233 +1,281 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
-import katex from 'katex';
-import 'katex/dist/katex.min.css';
-import './Exam.css';
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { toast } from "react-toastify";
+import { Helmet } from "react-helmet";
+import { submitExam } from "../../services/courseService";
+import { getExamById } from "../../services/examService";
+import "./TakeExam.css";
 
 const TakeExam = () => {
-  const { id } = useParams();
-  const [exam, setExam] = useState(null);
-  const [questions, setQuestions] = useState([]);
-  const [answers, setAnswers] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [timeLeft, setTimeLeft] = useState(null);
-  const [modalImage, setModalImage] = useState(null);
+  const { examId } = useParams();
   const navigate = useNavigate();
+  const { user, token } = useSelector((state) => state.auth);
+  const [exam, setExam] = useState(null);
+  const [answers, setAnswers] = useState({});
+  const [files, setFiles] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(null);
+  const [progressSaved, setProgressSaved] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    fetch(`http://localhost:5000/exams/${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          setExam(data.exam);
-          setQuestions(data.exam.questions || []);
-          setLoading(false);
+    if (!user || !token) {
+      toast.error("Vui lòng đăng nhập để làm bài thi!");
+      navigate("/auth/login");
+      return;
+    }
 
-          const savedAnswers = localStorage.getItem(`exam_${id}_answers`);
-          if (savedAnswers) {
-            setAnswers(JSON.parse(savedAnswers));
-          }
-        } else {
-          toast.error(data.message || 'Không thể tải bài thi');
-          setLoading(false);
-        }
-      })
-      .catch((err) => {
-        console.error(err);
-        toast.error('Không thể tải bài thi');
+    const fetchExam = async () => {
+      setLoading(true);
+      try {
+        const response = await getExamById(examId);
+        setExam(response.data);
+      } catch (err) {
+        setError(err?.message || "Không thể tải bài thi!");
+      } finally {
         setLoading(false);
-      });
-
-    const timer = setInterval(() => {
-      if (exam) {
-        const now = new Date();
-        if (now < new Date(exam.startTime) || now > new Date(exam.endTime)) {
-          clearInterval(timer);
-          toast.error('Bài thi không trong thời gian làm!');
-          navigate('/exams');
-          return;
-        }
-        const endTime = new Date(exam.endTime);
-        const timeDiff = endTime - now;
-        if (timeDiff <= 0) {
-          clearInterval(timer);
-          toast.error('Hết thời gian làm bài!');
-          submitExam();
-        } else {
-          setTimeLeft(formatTimeLeft(timeDiff));
-        }
       }
-    }, 1000);
+    };
+    fetchExam();
+  }, [examId, user, token, navigate]);
 
-    return () => clearInterval(timer);
-  }, [id, exam, navigate]);
+  useEffect(() => {
+    if (exam) {
+      const now = new Date();
+      if (now < new Date(exam.startTime)) {
+        setError("Bài thi chưa bắt đầu!");
+        return;
+      }
+      if (now > new Date(exam.endTime)) {
+        setError("Bài thi đã kết thúc!");
+        return;
+      }
+    }
+  }, [exam]);
 
-  const formatTimeLeft = (time) => {
-    const totalSeconds = Math.floor(time / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  };
-
-  const selectAnswer = (questionId, value) => {
-    const newAnswers = { ...answers, [questionId]: value };
-    setAnswers(newAnswers);
-    localStorage.setItem(`exam_${id}_answers`, JSON.stringify(newAnswers));
-  };
+  useEffect(() => {
+    if (exam) {
+      const endTime = new Date(exam.endTime);
+      const updateTimer = () => {
+        const now = new Date();
+        const timeLeft = Math.max(0, Math.floor((endTime - now) / 1000));
+        setTimeRemaining(timeLeft);
+        if (timeLeft === 0) {
+          handleSubmit(new Event("submit")); // Tự động nộp bài khi hết thời gian
+        }
+      };
+      updateTimer();
+      const timer = setInterval(updateTimer, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [exam]);
 
   const saveProgress = () => {
-    localStorage.setItem(`exam_${id}_answers`, JSON.stringify(answers));
-    toast.success('Đã lưu tiến độ!');
+    localStorage.setItem(`exam_${examId}_progress`, JSON.stringify(answers));
+    setProgressSaved(true);
+    toast.success("Đã lưu tiến độ!");
+    setTimeout(() => setProgressSaved(false), 2000);
   };
 
-  const submitExam = async () => {
-    const token = localStorage.getItem('token');
-    try {
-      const response = await fetch(`http://localhost:5000/exams/${id}/submit`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ answers }),
-      });
+  const handleAnswerChange = (questionId, value) => {
+    setAnswers((prev) => ({ ...prev, [questionId]: value }));
+  };
 
+  const handleFileChange = (questionId, file) => {
+    setFiles((prev) => ({ ...prev, [questionId]: file }));
+  };
+
+  const uploadFileToCloudinary = async (file) => {
+    try {
+      const presetResponse = await api.get("/cloudinary-upload-preset");
+      const { upload_preset, cloud_name } = presetResponse.data;
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", upload_preset);
+      formData.append("resource_type", "auto");
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloud_name}/upload`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
       const data = await response.json();
-      if (response.ok) {
-        toast.success(`Nộp bài thành công! Điểm: ${data.score}`);
-        localStorage.removeItem(`exam_${id}_answers`);
-        navigate('/exams');
-      } else {
-        toast.error(data.message || 'Lỗi khi nộp bài');
+      if (!response.ok) {
+        throw new Error(data.error?.message || "Lỗi khi upload file");
       }
-    } catch (err) {
-      console.error(err);
-      toast.error('Lỗi server');
-    }
-  };
-
-  const renderMath = (text) => {
-    try {
-      return katex.renderToString(text, {
-        throwOnError: false,
-        displayMode: false,
-      });
+      return data.secure_url;
     } catch (error) {
-      return text;
+      toast.error(error.message || "Không thể upload file");
+      throw error;
     }
   };
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Đã sao chép công thức!");
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!window.confirm("Bạn có chắc muốn nộp bài?")) return;
+    setSubmitting(true);
+    try {
+      const finalAnswers = { ...answers };
+      for (const [questionId, file] of Object.entries(files)) {
+        if (file) {
+          const fileUrl = await uploadFileToCloudinary(file);
+          finalAnswers[questionId] = fileUrl;
+        }
+      }
+      const response = await submitExam(examId, finalAnswers);
+      toast.success(
+        `Nộp bài thành công! Điểm: ${response.data.score}/${response.data.total}`
+      );
+      navigate(`/courses/${exam.courseId}`);
+    } catch (err) {
+      toast.error(err?.message || "Nộp bài thất bại!");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  if (loading) return <p>Đang tải...</p>;
-  if (!exam) return <p>Không tìm thấy bài thi</p>;
+  if (loading) {
+    return <div className="loading">Đang tải bài thi...</div>;
+  }
 
-  const answeredQuestions = Object.keys(answers).length;
+  if (error) {
+    return <div className="error">{error}</div>;
+  }
+
+  if (!exam) {
+    return <div className="no-results">Bài thi không tồn tại.</div>;
+  }
 
   return (
     <div className="take-exam">
-      <h1>{exam.title}</h1>
-      <p>{exam.description}</p>
-      <p>Tiến độ: {answeredQuestions}/{questions.length} câu đã trả lời</p>
-      {timeLeft && <div className="timer">Thời gian còn lại: {timeLeft}</div>}
-      {questions.map((q, index) => (
-        <div key={q._id} className="question">
-          <h3>
-            Câu {index + 1}:{" "}
-            <span
-              dangerouslySetInnerHTML={{ __html: renderMath(q.questionText) }}
-            />
-            <button
-              onClick={() => copyToClipboard(q.questionText)}
-              className="copy-button"
-            >
-              Copy
-            </button>
-          </h3>
-          {q.images && q.images.length > 0 && (
-            <div className="question-images">
-              {q.images.map((img, i) => (
-                <img
-                  key={i}
-                  src={img}
-                  alt={`Hình minh họa ${i}`}
-                  width="100"
-                  onClick={() => setModalImage(img)}
-                  style={{ cursor: "pointer" }}
-                />
-              ))}
-            </div>
-          )}
-          {q.questionType === 'multiple-choice' ? (
-            q.options.map((option, i) => (
-              <div key={i}>
-                <input
-                  type="radio"
-                  name={`question-${q._id}`}
-                  value={option.text}
-                  onChange={() => selectAnswer(q._id, option.text)}
-                  checked={answers[q._id] === option.text}
-                />
-                <label>{option.text}</label>
-              </div>
-            ))
-          ) : q.questionType === 'true-false' ? (
-            <>
-              <div>
-                <input
-                  type="radio"
-                  name={`question-${q._id}`}
-                  value="true"
-                  onChange={() => selectAnswer(q._id, "true")}
-                  checked={answers[q._id] === "true"}
-                />
-                <label>Đúng</label>
-              </div>
-              <div>
-                <input
-                  type="radio"
-                  name={`question-${q._id}`}
-                  value="false"
-                  onChange={() => selectAnswer(q._id, "false")}
-                  checked={answers[q._id] === "false"}
-                />
-                <label>Sai</label>
-              </div>
-            </>
-          ) : q.questionType === 'fill-in' || q.questionType === 'essay' ? (
-            <textarea
-              onChange={(e) => selectAnswer(q._id, e.target.value)}
-              value={answers[q._id] || ''}
-              placeholder="Nhập câu trả lời của bạn"
-            />
-          ) : q.questionType === 'math-equation' ? (
-            <input
-              type="text"
-              onChange={(e) => selectAnswer(q._id, e.target.value)}
-              value={answers[q._id] || ''}
-              placeholder="Nhập công thức (ví dụ: $x = 5$)"
-            />
-          ) : null}
-        </div>
-      ))}
-      <button onClick={saveProgress}>Lưu tạm</button>
-      <button onClick={submitExam}>Nộp bài</button>
-
-      {modalImage && (
-        <div className="modal" onClick={() => setModalImage(null)}>
-          <div className="modal-content">
-            <img src={modalImage} alt="Hình lớn" />
+      <Helmet>
+        <title>FunMath - Làm bài thi: {exam.title}</title>
+        <meta
+          name="description"
+          content={`Làm bài thi ${exam.title} thuộc khóa học.`}
+        />
+      </Helmet>
+      <div className="exam-container">
+        <Link to={`/courses/${exam.courseId}`} className="back-link">
+          <i className="fas fa-arrow-left"></i> Quay lại khóa học
+        </Link>
+        <h2>{exam.title}</h2>
+        <p>Thời gian: {exam.duration} phút</p>
+        {timeRemaining !== null && (
+          <p>
+            Thời gian còn lại: {Math.floor(timeRemaining / 60)}:
+            {(timeRemaining % 60).toString().padStart(2, "0")}
+          </p>
+        )}
+        <form onSubmit={handleSubmit} className="exam-form">
+          <div className="progress-indicator">
+            Đã trả lời: {Object.keys(answers).length}/{exam.questions.length}
           </div>
-        </div>
-      )}
+          {exam.questions.map((question, index) => (
+            <div key={question._id} className="question-item">
+              <h4>
+                Câu {index + 1}: {question.questionText} ({question.score} điểm)
+              </h4>
+              {question.questionType === "multiple-choice" ? (
+                <div className="options">
+                  {question.options.map((option, idx) => (
+                    <label key={idx} className="option-item">
+                      <input
+                        type="radio"
+                        name={`question-${question._id}`}
+                        value={idx}
+                        checked={answers[question._id] === idx.toString()}
+                        onChange={() =>
+                          handleAnswerChange(question._id, idx.toString())
+                        }
+                      />
+                      {option.text}
+                    </label>
+                  ))}
+                </div>
+              ) : question.questionType === "true-false" ? (
+                <div className="options">
+                  <label>
+                    <input
+                      type="radio"
+                      name={`question-${question._id}`}
+                      value="true"
+                      checked={answers[question._id] === "true"}
+                      onChange={() => handleAnswerChange(question._id, "true")}
+                    />
+                    Đúng
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name={`question-${question._id}`}
+                      value="false"
+                      checked={answers[question._id] === "false"}
+                      onChange={() => handleAnswerChange(question._id, "false")}
+                    />
+                    Sai
+                  </label>
+                </div>
+              ) : question.questionType === "fill-in" ? (
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Nhập câu trả lời..."
+                  value={answers[question._id] || ""}
+                  onChange={(e) =>
+                    handleAnswerChange(question._id, e.target.value)
+                  }
+                />
+              ) : (
+                <div className="essay-answer">
+                  <textarea
+                    className="form-textarea"
+                    placeholder="Nhập câu trả lời của bạn..."
+                    value={answers[question._id] || ""}
+                    onChange={(e) =>
+                      handleAnswerChange(question._id, e.target.value)
+                    }
+                  />
+                  <div className="file-upload">
+                    <label>Tải file (PDF, hình ảnh, v.v.):</label>
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={(e) =>
+                        handleFileChange(question._id, e.target.files[0])
+                      }
+                    />
+                    {files[question._id] && (
+                      <p>File: {files[question._id].name}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+          <div className="form-actions">
+            <button
+              type="button"
+              className="save-progress-button"
+              onClick={saveProgress}
+            >
+              {progressSaved ? "Đã lưu!" : "Lưu tạm thời"}
+            </button>
+            <button
+              type="submit"
+              className="submit-button"
+              disabled={submitting}
+            >
+              {submitting ? "Đang nộp bài..." : "Nộp bài"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };

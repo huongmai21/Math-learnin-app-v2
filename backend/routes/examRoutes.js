@@ -1,40 +1,129 @@
 // routes/examRoutes.js
 const express = require("express");
 const router = express.Router();
-const examController = require("../controllers/examController");
 const {authenticateToken,checkRole} = require("../middleware/authMiddleware");
-// const checkRole = require("../middleware/roleMiddleware");
+const {
+  getAllExams,
+  getRecommendedExams,
+  followExam,
+  getExamAnswers,
+  getGlobalLeaderboard,
+  getExamLeaderboard,
+  submitExam,
+  createExam,
+  updateExam,
+  deleteExam,
+  createExamForCourse,
+  takeExam,
+  getExamsByCourse,
+  addQuestionToExam,
+  updateQuestionInExam,
+  deleteQuestionFromExam,
+  updateSubmissionScore,
+  getExamSubmissions,
+  getExamQuestions,
+  getUserExamResult,
+  createReminder,
+} = require("../controllers/examController");
 
-// Routes không yêu cầu quyền cụ thể
-router.get("/", examController.getAllExams);
+
+router.get("/", getAllExams);
 router.get(
   "/recommended",
   authenticateToken,
-  examController.getRecommendedExams
+  getRecommendedExams
 );
-router.post("/:id/follow", authenticateToken, examController.followExam);
-router.get("/:id/answers", authenticateToken, examController.getExamAnswers);
-router.get("/leaderboard/global", examController.getGlobalLeaderboard);
-router.get("/:id/leaderboard", examController.getExamLeaderboard);
+router.post("/:id/follow", authenticateToken, followExam);
+router.get("/:id/answers", authenticateToken, getExamAnswers);
+router.get("/leaderboard/global", getGlobalLeaderboard);
+router.get("/:id/leaderboard", getExamLeaderboard);
+router.post(
+  "/:examId/submit",
+  authenticateToken,
+  submitExam
+);
 
-// Routes yêu cầu quyền teacher hoặc admin
 router.post(
   "/",
   authenticateToken,
   checkRole("teacher", "admin"),
-  examController.createExam
+  createExam
 );
 router.put(
   "/:id",
   authenticateToken,
   checkRole("teacher", "admin"),
-  examController.updateExam
+  updateExam
 );
 router.delete(
   "/:id",
   authenticateToken,
   checkRole("teacher", "admin"),
-  examController.deleteExam
+  deleteExam
 );
+
+router.post(
+  "/courses/:courseId/exams",
+  authenticateToken,
+  checkRole("teacher", "admin"),
+  createExamForCourse
+);
+router.get(
+  "/:examId/take",
+  authenticateToken,
+  takeExam
+);
+router.put(
+  "/:examId/submissions/:submissionId/grade",
+  authenticateToken,
+  checkRole(["teacher", "admin"]),
+  updateSubmissionScore
+);
+
+router.get(
+  "/courses/:courseId",
+  authenticateToken,
+  getExamsByCourse
+);
+
+router.post(
+  "/:examId/questions",
+  authenticateToken,
+  checkRole("teacher", "admin"),
+  addQuestionToExam
+);
+router.put(
+  "/:examId/questions/:questionId",
+  authenticateToken,
+  checkRole("teacher", "admin"),
+  updateQuestionInExam
+);
+router.delete(
+  "/:examId/questions/:questionId",
+  authenticateToken,
+  checkRole("teacher", "admin"),
+  deleteQuestionFromExam
+);
+
+router.get(
+  "/:examId/submissions",
+  authenticateToken,
+  checkRole("teacher", "admin"),
+  getExamSubmissions
+);
+
+router.get(
+  "/questions",
+  authenticateToken,
+  checkRole("teacher", "admin"),
+  getExamQuestions
+);
+router.get(
+  "/:examId/result/:userId",
+  authenticateToken,
+  getUserExamResult
+);
+
+router.post("/:examId/reminder", authenticateToken, createReminder);
 
 module.exports = router;

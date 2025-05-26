@@ -1,14 +1,12 @@
-// EditCourse.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useSelector } from "react-redux";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { Helmet } from "react-helmet";
-import { getCourse, updateCourse } from "../../services/courseService";
-import "./CreateCourse.css"; 
+import { createCourse } from "../../services/courseService";
+import "./CreateCourse.css";
 
-const EditCourse = () => {
-  const { courseId } = useParams();
+const CreateCourse = () => {
   const { user, token } = useSelector((state) => state.auth);
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -19,27 +17,7 @@ const EditCourse = () => {
     thumbnail: "",
     contents: [],
   });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!user || !token || (user.role !== "teacher" && user.role !== "admin")) {
-      toast.error("Bạn không có quyền chỉnh sửa khóa học!");
-      navigate("/courses");
-      return;
-    }
-
-    const fetchCourse = async () => {
-      try {
-        const response = await getCourse(courseId);
-        setFormData(response.data);
-      } catch (err) {
-        toast.error(err.message || "Không thể tải khóa học!");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchCourse();
-  }, [courseId, user, token, navigate]);
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -68,30 +46,30 @@ const EditCourse = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (user.role !== "teacher" && user.role !== "admin") {
+      toast.error("Bạn không có quyền tạo khóa học!");
+      return;
+    }
     setLoading(true);
     try {
-      await updateCourse(courseId, formData);
-      toast.success("Cập nhật khóa học thành công!");
+      await createCourse(formData, user);
+      toast.success("Tạo khóa học thành công!");
       navigate("/courses/my-courses");
     } catch (err) {
-      toast.error(err.message || "Cập nhật khóa học thất bại!");
+      toast.error(err.message || "Tạo khóa học thất bại!");
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
-    return <div className="loading">Đang tải...</div>;
-  }
-
   return (
     <div className="create-course">
       <Helmet>
-        <title>FunMath - Chỉnh sửa khóa học</title>
-        <meta name="description" content="Chỉnh sửa khóa học trên FunMath." />
+        <title>FunMath - Tạo khóa học mới</title>
+        <meta name="description" content="Tạo khóa học mới trên FunMath." />
       </Helmet>
       <div className="create-course-container">
-        <h2>Chỉnh sửa khóa học</h2>
+        <h2>Tạo khóa học mới</h2>
         <form onSubmit={handleSubmit} className="create-course-form">
           <div className="form-group">
             <label>Tiêu đề:</label>
@@ -176,7 +154,7 @@ const EditCourse = () => {
             </button>
           </div>
           <button type="submit" disabled={loading}>
-            {loading ? "Đang cập nhật..." : "Cập nhật khóa học"}
+            {loading ? "Đang tạo..." : "Tạo khóa học"}
           </button>
         </form>
       </div>
@@ -184,4 +162,4 @@ const EditCourse = () => {
   );
 };
 
-export default EditCourse;
+export default CreateCourse;

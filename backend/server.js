@@ -10,6 +10,8 @@ const http = require("http")
 const errorHandler = require("./middleware/error")
 
 require("dotenv").config({ path: path.resolve(__dirname, ".env") })
+require("./utils/notificationCron");
+
 // MongoDB Connection
 connectMongoDB()
 
@@ -70,7 +72,7 @@ const examRoutes = require("./routes/examRoutes");
 const postRoutes = require("./routes/postRoutes");
 const studyRoomRoutes = require("./routes/studyRoomRoutes");
 const commentRoutes = require("./routes/commentRoutes");
-const uploadRoutes = require("./routes/uploadRoutes");
+// const uploadRoutes = require("./routes/uploadRoutes");
 const notificationsRoutes = require("./routes/notificationsRoutes");
 const searchRoutes = require("./routes/searchRoutes");
 const bookmarkRoutes = require("./routes/bookmarkRoutes");
@@ -92,7 +94,7 @@ app.use("/search",  searchRoutes);
 app.use("/bookmarks",  bookmarkRoutes);
 app.use("/comments",  commentRoutes);
 app.use("/notifications", notificationsRoutes);
-app.use("/upload",  uploadRoutes);
+// app.use("/upload",  uploadRoutes);
 
 app.use(errorHandler)
 
@@ -117,13 +119,17 @@ app.get("/cloudinary-upload-preset", (req, res) => {
 global.io = io // Lưu io vào global để dùng trong controller
 
 io.on("connection", (socket) => {
-  console.log("Client connected:", socket.id)
+  console.log("Client connected:", socket.id);
   socket.on("join", (userId) => {
-    socket.join(userId) // User joins their own room
-    console.log(`User ${userId} joined room`)
-  })
-  socket.on("disconnect", () => console.log("Client disconnected:", socket.id))
-})
+    if (!userId) {
+      socket.emit("error", "Invalid userId");
+      return;
+    }
+    socket.join(userId);
+    console.log(`User ${userId} joined room`);
+  });
+  socket.on("disconnect", () => console.log("Client disconnected:", socket.id));
+});
 
 // Start Server
 const PORT = process.env.PORT || 5000

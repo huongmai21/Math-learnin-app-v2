@@ -1,34 +1,67 @@
-const mongoose = require("mongoose")
-const { Schema } = mongoose
+const mongoose = require("mongoose");
+
+
+// const questionSchema = new mongoose.Schema({
+//   questionText: { type: String, required: true },
+//   options: [{ type: String }],
+//   correctAnswer: { type: Number, default: 0 }, // Chỉ số của đáp án đúng
+//   type: {
+//     type: String,
+//     enum: ["multiple-choice", "text"],
+//     default: "multiple-choice",
+//   },
+//   score: { type: Number, required: true, default: 1 }, // Thêm điểm số
+//   submission: { type: String },
+// });
+
+// const submissionSchema = new mongoose.Schema({
+//   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+//   answers: {
+//     type: Map,
+//     of: {
+//       answer: { type: String }, // Text answer or file URL
+//       score: { type: Number, default: 0 }, // Score for essay questions
+//     },
+//   },
+//   totalScore: { type: Number, default: 0 },
+//   submittedAt: { type: Date, default: Date.now },
+//   isPublic: { type: Boolean, default: true },
+// });
 
 const examSchema = new mongoose.Schema({
   title: { type: String, required: true },
-  description: { type: String },
-  educationLevel: { type: String, required: true },
-  subject: { type: String, required: true },
-  duration: { type: Number, required: true },
-  questions: [{ type: Schema.Types.Mixed }],
+  description: String,
+  courseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Course",
+    required: false,
+  },
+  educationLevel: {
+    type: String,
+    enum: ["primary", "secondary", "highschool", "university"],
+    default: "primary",
+  },
+  subject: { type: String, required: false }, 
+  duration: { type: Number, required: true }, // Đơn vị: phút
+  questions: [{ type: mongoose.Schema.Types.ObjectId, ref: "ExamQuestion" }],
+  submissions: [{ type: mongoose.Schema.Types.ObjectId, ref: "ExamResult" }],
   startTime: { type: Date, required: true },
   endTime: { type: Date, required: true },
   difficulty: {
     type: String,
     enum: ["easy", "medium", "hard"],
-    required: true,
+    default: "easy",
   },
-  author: { type: Schema.Types.ObjectId, ref: "User", required: true },
-  createdAt: { type: Date, default: Date.now },
-  maxAttempts: { type: Number, default: 1 }, // Giới hạn số lần làm bài
-  attempts: { type: Number, default: 0 } // Thêm trường attempts để theo dõi số lượt tham gia
-})
+  maxAttempts: { type: Number, default: 1 },
+  author: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  isPublic: { type: Boolean, default: true },
+  totalScore: { type: Number, default: 0 },
+});
 
-// Validation để đảm bảo endTime > startTime
-examSchema.pre("save", function (next) {
-  if (this.endTime <= this.startTime) {
-    return next(new Error("Thời gian kết thúc phải lớn hơn thời gian bắt đầu"))
-  }
-  next()
-})
+examSchema.index({ courseId: 1 });
+examSchema.index({ author: 1 });
+examSchema.index({ subject: 1 });
 
-const Exam = mongoose.model("Exam", examSchema)
+const Exam  = mongoose.model("Exam", examSchema);
 
-module.exports = Exam
+module.exports = Exam;

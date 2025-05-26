@@ -36,10 +36,10 @@ export const getNotifications = async (
     const response = await retryRequest(() =>
       api.get(`/notifications?page=${page}&limit=${limit}&unread=${unread}`)
     );
-    return response.data;
+    return response.data || { success: false, data: [], count: 0 };
   } catch (error) {
     console.error("Error fetching notifications:", error);
-    throw error;
+    throw new Error(error.response?.data?.message || "Không thể tải thông báo");
   }
 };
 

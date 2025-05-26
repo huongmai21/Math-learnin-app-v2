@@ -1,4 +1,6 @@
-const News = require("../models/News.js");
+const {News} = require("../models");
+const asyncHandler = require("../middleware/asyncHandler");
+const ErrorResponse = require("../utils/errorResponse");
 
 // Lấy tất cả tin tức (phân trang, lọc theo category và tìm kiếm)
 exports.getAllNews = async (req, res) => {

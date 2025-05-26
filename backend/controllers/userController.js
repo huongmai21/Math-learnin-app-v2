@@ -1,10 +1,7 @@
-const User = require("../models/User");
-const UserActivity = require("../models/UserActivity");
-const Follow = require("../models/Follow");
-const Notification = require("../models/Notification"); // Thêm import
 const asyncHandler = require("../middleware/asyncHandler");
 const ErrorResponse = require("../utils/errorResponse");
 const cloudinary = require("../config/cloudinary");
+const {User, UserActivity, Follow, Notification} = require("../models");
 
 exports.getProfile = asyncHandler(async (req, res, next) => {
   const user = await User.findById(req.user.id)

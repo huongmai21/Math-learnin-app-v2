@@ -1,8 +1,6 @@
-const Comment = require("../models/Comment");
-const Document = require("../models/Document");
-const Notification = require("../models/Notification");
 const asyncHandler = require("../middleware/asyncHandler");
 const ErrorResponse = require("../utils/errorResponse");
+const {Comment, Notification, Document} = require("../models");
 
 exports.getCommentsByDocument = asyncHandler(async (req, res, next) => {
   const { referenceId } = req.params;

@@ -1,14 +1,6 @@
-// adminController.js
-const User = require("../models/User");
-const Course = require("../models/Course");
-const Exam = require("../models/Exam");
-const News = require("../models/News");
-const Document = require("../models/Document");
-const Bookmark = require("../models/Bookmark");
-const Comment = require("../models/Comment");
-const Question = require("../models/Question");
 const cloudinary = require("../config/cloudinary");
 const fs = require("fs").promises; // For cleaning up temporary files
+const {Exam, News, Comment, Bookmark, Document, Question, Course, User} = require("../models");
 
 // Validation helper
 const validateRequiredFields = (fields, data) => {

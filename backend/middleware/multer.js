@@ -27,6 +27,9 @@ const upload = multer({
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "image/jpeg",
       "image/png",
+      "video/mp4",
+      "video/x-msvideo",
+      "video/quicktime",
     ];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);

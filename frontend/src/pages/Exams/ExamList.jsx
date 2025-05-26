@@ -1,111 +1,94 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Link } from "react-router-dom"
-import { useSelector } from "react-redux"
-import { motion } from "framer-motion"
-import "./Exam.css"
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { motion } from "framer-motion";
+import { toast } from "react-toastify";
+import { getAllExams, getRecommendedExams } from "../../services/examService";
+import "./Exam.css";
 
 const ExamList = () => {
-  const { user, isAuthenticated } = useSelector((state) => state.auth)
-  const [exams, setExams] = useState([])
-  const [recommendedExams, setRecommendedExams] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { user, isAuthenticated } = useSelector((state) => state.auth);
+  const [exams, setExams] = useState([]);
+  const [recommendedExams, setRecommendedExams] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [filters, setFilters] = useState({
     educationLevel: "",
     subject: "",
     difficulty: "",
     status: "",
-  })
-  const [searchQuery, setSearchQuery] = useState("")
-  const [error, setError] = useState(null)
+  });
+  const [examHistory, setExamHistory] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const limit = 6;
 
   useEffect(() => {
     const fetchExams = async () => {
       try {
-        setLoading(true)
-        setError(null)
-
-        // Giả lập dữ liệu khi backend chưa hoạt động
-        setTimeout(() => {
-          const mockExams = [
-            {
-              _id: "1",
-              title: "Đề thi Đại số lớp 10",
-              description: "Đề thi học kỳ 1 môn Đại số dành cho học sinh lớp 10",
-              educationLevel: "grade10",
-              subject: "algebra",
-              difficulty: "medium",
-              duration: 60,
-              questions: Array(15).fill({}),
-              startTime: new Date(Date.now() + 86400000).toISOString(),
-              endTime: new Date(Date.now() + 172800000).toISOString(),
-              status: "upcoming",
-            },
-            {
-              _id: "2",
-              title: "Đề thi Hình học lớp 9",
-              description: "Đề thi cuối kỳ môn Hình học dành cho học sinh lớp 9",
-              educationLevel: "grade9",
-              subject: "geometry",
-              difficulty: "hard",
-              duration: 45,
-              questions: Array(10).fill({}),
-              startTime: new Date(Date.now() - 86400000).toISOString(),
-              endTime: new Date(Date.now() + 86400000).toISOString(),
-              status: "ongoing",
-            },
-            {
-              _id: "3",
-              title: "Đề thi Giải tích lớp 12",
-              description: "Đề thi thử THPT Quốc gia môn Toán phần Giải tích",
-              educationLevel: "grade12",
-              subject: "calculus",
-              difficulty: "hard",
-              duration: 90,
-              questions: Array(20).fill({}),
-              startTime: new Date(Date.now() - 172800000).toISOString(),
-              endTime: new Date(Date.now() - 86400000).toISOString(),
-              status: "ended",
-            },
-            {
-              _id: "4",
-              title: "Đề thi Thống kê lớp 11",
-              description: "Đề thi giữa kỳ phần Thống kê và Xác suất",
-              educationLevel: "grade11",
-              subject: "statistics",
-              difficulty: "easy",
-              duration: 45,
-              questions: Array(12).fill({}),
-              startTime: new Date(Date.now() + 259200000).toISOString(),
-              endTime: new Date(Date.now() + 345600000).toISOString(),
-              status: "upcoming",
-            },
-          ]
-
-          setExams(mockExams)
-          setRecommendedExams(mockExams.slice(0, 2))
-          setLoading(false)
-        }, 1000)
+        setLoading(true);
+        setError(null);
+        const params = {
+          ...filters,
+          search: searchQuery,
+          page,
+          limit,
+          isPublic: true,
+        };
+        const response = await getAllExams(params);
+        setExams(response.data || []);
+        setTotalPages(response.totalPages);
+        if (isAuthenticated) {
+          const recommended = await getRecommendedExams();
+          setRecommendedExams(recommended.data || []);
+        }
       } catch (error) {
-        console.error("Lỗi khi lấy danh sách đề thi:", error)
-        setError("Không thể tải danh sách đề thi. Vui lòng thử lại sau.")
-        setExams([])
-        setLoading(false)
+        setError(error.message || "Không thể tải danh sách đề thi");
+        setExams([]);
+        setRecommendedExams([]);
+      } finally {
+        setLoading(false);
       }
-    }
+    };
+    fetchExams();
+  }, [isAuthenticated, user, filters, searchQuery, page]);
 
-    fetchExams()
-  }, [isAuthenticated, user, filters, searchQuery])
+  // useEffect(() => {
+  //   const fetchExamHistory = async () => {
+  //     if (isAuthenticated) {
+  //       try {
+  //         const response = await getExamHistory(user._id); // Giả sử có API này
+  //         setExamHistory(response.data || []);
+  //       } catch (err) {
+  //         toast.error("Không thể tải lịch sử bài thi!");
+  //       }
+  //     }
+  //   };
+  //   fetchExamHistory();
+  // }, [isAuthenticated, user]);
+
+  // const handleReminder = async (examId) => {
+  //   try {
+  //     await setExamReminder(examId); // Giả sử có API này
+  //     toast.success("Đã đặt nhắc nhở cho bài thi!");
+  //   } catch (err) {
+  //     toast.error("Không thể đặt nhắc nhở!");
+  //   }
+  // };
 
   const handleFilterChange = (e) => {
-    const { name, value } = e.target
-    setFilters((prev) => ({ ...prev, [name]: value }))
-  }
+    const { name, value } = e.target;
+    setFilters((prev) => ({ ...prev, [name]: value }));
+    setPage(1);
+  };
 
   const handleSearchChange = (e) => {
-    setSearchQuery(e.target.value)
-  }
+    setSearchQuery(e.target.value);
+    setPage(1);
+  };
 
   const resetFilters = () => {
     setFilters({
@@ -113,33 +96,33 @@ const ExamList = () => {
       subject: "",
       difficulty: "",
       status: "",
-    })
-    setSearchQuery("")
-  }
+    });
+    setSearchQuery("");
+    setPage(1);
+  };
 
-  const filteredExams = exams.filter((exam) => {
-    const matchesSearch = exam.title.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesEducationLevel = filters.educationLevel ? exam.educationLevel === filters.educationLevel : true
-    const matchesSubject = filters.subject ? exam.subject === filters.subject : true
-    const matchesDifficulty = filters.difficulty ? exam.difficulty === filters.difficulty : true
-    const matchesStatus = filters.status ? exam.status === filters.status : true
-
-    return matchesSearch && matchesEducationLevel && matchesSubject && matchesDifficulty && matchesStatus
-  })
+  const getStatus = (exam) => {
+    const now = new Date();
+    if (now < new Date(exam.startTime)) return "upcoming";
+    if (now > new Date(exam.endTime)) return "ended";
+    return "ongoing";
+  };
 
   if (loading) {
     return (
       <div className="exam-list-container">
         <div className="exam-header">
           <h1>Thi đấu</h1>
-          <p>Tham gia các kỳ thi, thử thách và nâng cao kỹ năng toán học của bạn</p>
+          <p>
+            Tham gia các kỳ thi, thử thách và nâng cao kỹ năng toán học của bạn
+          </p>
         </div>
         <div className="loading-spinner">
           <div className="spinner"></div>
           <p>Đang tải danh sách đề thi...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -147,17 +130,22 @@ const ExamList = () => {
       <div className="exam-list-container">
         <div className="exam-header">
           <h1>Thi đấu</h1>
-          <p>Tham gia các kỳ thi, thử thách và nâng cao kỹ năng toán học của bạn</p>
+          <p>
+            Tham gia các kỳ thi, thử thách và nâng cao kỹ năng toán học của bạn
+          </p>
         </div>
         <div className="error-message">
           <i className="fas fa-exclamation-circle"></i>
           <p>{error}</p>
-          <button onClick={() => window.location.reload()} className="retry-button">
+          <button
+            onClick={() => window.location.reload()}
+            className="retry-button"
+          >
             Thử lại
           </button>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -169,7 +157,9 @@ const ExamList = () => {
         transition={{ duration: 0.5 }}
       >
         <h1>Thi đấu</h1>
-        <p>Tham gia các kỳ thi, thử thách và nâng cao kỹ năng toán học của bạn</p>
+        <p>
+          Tham gia các kỳ thi, thử thách và nâng cao kỹ năng toán học của bạn
+        </p>
       </motion.div>
 
       <motion.div
@@ -191,103 +181,97 @@ const ExamList = () => {
           </button>
         </div>
 
-        <div className="filters">
-          <select
-            name="educationLevel"
-            value={filters.educationLevel}
-            onChange={handleFilterChange}
-            className="filter-select"
-          >
-            <option value="">Tất cả cấp học</option>
-            {[...Array(12).keys()].map((i) => (
-              <option key={i + 1} value={`grade${i + 1}`}>
-                Lớp {i + 1}
-              </option>
-            ))}
-            <option value="university">Đại học</option>
-          </select>
+        <div className="exam-filters">
+          <div className="filter-select">
+            <select
+              name="educationLevel"
+              value={filters.educationLevel}
+              onChange={handleFilterChange}
+            >
+              <option value="">Tất cả cấp học</option>
+              {[...Array(12).keys()].map((i) => (
+                <option key={i + 1} value={`grade${i + 1}`}>
+                  Lớp {i + 1}
+                </option>
+              ))}
+              <option value="university">Đại học</option>
+            </select>
+          </div>
 
-          <select name="subject" value={filters.subject} onChange={handleFilterChange} className="filter-select">
-            <option value="">Tất cả môn</option>
-            <option value="algebra">Đại số</option>
-            <option value="geometry">Hình học</option>
-            <option value="calculus">Giải tích</option>
-            <option value="statistics">Thống kê</option>
-          </select>
+          <div className="filter-select">
+            <select
+              name="subject"
+              value={filters.subject}
+              onChange={handleFilterChange}
+            >
+              <option value="">Tất cả môn</option>
+              <option value="algebra">Đại số</option>
+              <option value="geometry">Hình học</option>
+              <option value="calculus">Giải tích</option>
+              <option value="statistics">Thống kê</option>
+            </select>
+          </div>
 
-          <select name="difficulty" value={filters.difficulty} onChange={handleFilterChange} className="filter-select">
-            <option value="">Tất cả độ khó</option>
-            <option value="easy">Dễ</option>
-            <option value="medium">Trung bình</option>
-            <option value="hard">Khó</option>
-          </select>
+          <div className="filter-select">
+            <select
+              name="difficulty"
+              value={filters.difficulty}
+              onChange={handleFilterChange}
+            >
+              <option value="">Tất cả độ khó</option>
+              <option value="easy">Dễ</option>
+              <option value="medium">Trung bình</option>
+              <option value="hard">Khó</option>
+            </select>
+          </div>
 
-          <select name="status" value={filters.status} onChange={handleFilterChange} className="filter-select">
-            <option value="">Tất cả trạng thái</option>
-            <option value="upcoming">Sắp diễn ra</option>
-            <option value="ongoing">Đang diễn ra</option>
-            <option value="ended">Kết thúc</option>
-          </select>
+          <div className="filter-select">
+            <select
+              name="status"
+              value={filters.status}
+              onChange={handleFilterChange}
+            >
+              <option value="">Tất cả trạng thái</option>
+              <option value="upcoming">Sắp diễn ra</option>
+              <option value="ongoing">Đang diễn ra</option>
+              <option value="ended">Kết thúc</option>
+            </select>
+          </div>
 
-          <button className="reset-button" onClick={resetFilters}>
+          <button className="reset-filters" onClick={resetFilters}>
             <i className="fas fa-times"></i> Xóa bộ lọc
           </button>
         </div>
       </motion.div>
 
-      {isAuthenticated && recommendedExams.length > 0 && (
-        <motion.div
-          className="recommended-exams"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-        >
-          <h2>Đề xuất cho bạn</h2>
+      {isAuthenticated && examHistory.length > 0 && (
+        <motion.div className="exam-history">
+          <h2>Lịch sử bài thi</h2>
           <div className="exam-grid">
-            {recommendedExams.map((exam, index) => (
+            {examHistory.map((exam, index) => (
               <motion.div
                 key={exam._id}
-                className={`exam-card ${exam.status}`}
+                className="exam-card ended"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 + index * 0.1 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
               >
                 <div className="exam-card-header">
-                  <span className={`difficulty-badge ${exam.difficulty}`}>
-                    {exam.difficulty === "easy" ? "Dễ" : exam.difficulty === "medium" ? "Trung bình" : "Khó"}
-                  </span>
-                  <h3>{exam.title}</h3>
+                  <h3 className="exam-title">{exam.title}</h3>
+                  <span className="exam-subject">{exam.subject}</span>
                 </div>
                 <div className="exam-card-body">
-                  <p>{exam.description}</p>
-                  <div className="exam-info">
-                    <span>
-                      <i className="fas fa-graduation-cap"></i>{" "}
-                      {exam.educationLevel.includes("grade")
-                        ? `Lớp ${exam.educationLevel.replace("grade", "")}`
-                        : "Đại học"}
-                    </span>
-                    <span>
-                      <i className="fas fa-book"></i>{" "}
-                      {exam.subject === "algebra"
-                        ? "Đại số"
-                        : exam.subject === "geometry"
-                          ? "Hình học"
-                          : exam.subject === "calculus"
-                            ? "Giải tích"
-                            : "Thống kê"}
-                    </span>
-                    <span>
-                      <i className="fas fa-clock"></i> {exam.duration} phút
-                    </span>
-                    <span>
-                      <i className="fas fa-question-circle"></i> {exam.questions?.length || 0} câu hỏi
-                    </span>
-                  </div>
+                  <p>
+                    Điểm: {exam.score}/{exam.totalScore}
+                  </p>
+                  <p>
+                    Nộp lúc:{" "}
+                    {new Date(exam.submittedAt).toLocaleString("vi-VN")}
+                  </p>
                 </div>
                 <div className="exam-card-footer">
                   <Link to={`/exams/${exam._id}`} className="take-exam-button">
-                    <i className="fas fa-pencil-alt"></i> Làm bài
+                    <i className="fas fa-eye"></i> Xem chi tiết
                   </Link>
                 </div>
               </motion.div>
@@ -295,6 +279,118 @@ const ExamList = () => {
           </div>
         </motion.div>
       )}
+      
+      {isAuthenticated &&
+        Array.isArray(recommendedExams) &&
+        recommendedExams.length > 0 && (
+          <motion.div
+            className="recommended-exams"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <h2>Đề xuất cho bạn</h2>
+            <div className="exam-grid">
+              {recommendedExams.map((exam, index) => (
+                <motion.div
+                  key={exam._id}
+                  className={`exam-card ${getStatus(exam)}`}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 + index * 0.1 }}
+                >
+                  <div className="exam-card-header">
+                    <span className={`difficulty-badge ${exam.difficulty}`}>
+                      {exam.difficulty === "easy"
+                        ? "Dễ"
+                        : exam.difficulty === "medium"
+                        ? "Trung bình"
+                        : "Khó"}
+                    </span>
+                    <h3 className="exam-title">{exam.title}</h3>
+                    <span className="exam-subject">
+                      {exam.subject === "algebra"
+                        ? "Đại số"
+                        : exam.subject === "geometry"
+                        ? "Hình học"
+                        : exam.subject === "calculus"
+                        ? "Giải tích"
+                        : "Thống kê"}
+                    </span>
+                  </div>
+                  <div className="exam-card-body">
+                    <p className="exam-description">{exam.description}</p>
+                    <div className="exam-info">
+                      <div className="exam-info-item">
+                        <i className="fas fa-graduation-cap"></i>
+                        {exam.educationLevel.includes("grade")
+                          ? `Lớp ${exam.educationLevel.replace("grade", "")}`
+                          : "Đại học"}
+                      </div>
+                      <div className="exam-info-item">
+                        <i className="fas fa-clock"></i> {exam.duration} phút
+                      </div>
+                      <div className="exam-info-item">
+                        <i className="fas fa-question-circle"></i>{" "}
+                        {exam.questions?.length || 0} câu hỏi
+                      </div>
+                    </div>
+                    <div className="exam-status-info">
+                      <span className={`status-indicator ${getStatus(exam)}`}>
+                        {getStatus(exam) === "upcoming" ? (
+                          <>
+                            <i className="fas fa-hourglass-start"></i> Sắp diễn
+                            ra
+                          </>
+                        ) : getStatus(exam) === "ongoing" ? (
+                          <>
+                            <i className="fas fa-play-circle"></i> Đang diễn ra
+                          </>
+                        ) : (
+                          <>
+                            <i className="fas fa-check-circle"></i> Đã kết thúc
+                          </>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="exam-card-footer">
+                    <Link
+                      to={`/exams/${exam._id}`}
+                      className="take-exam-button"
+                      onClick={(e) => {
+                        if (getStatus(exam) === "upcoming") {
+                          e.preventDefault();
+                          handleReminder(exam._id);
+                        }
+                      }}
+                    >
+                      {getStatus(exam) === "upcoming" ? (
+                        <>
+                          <i className="fas fa-bell"></i> Nhắc nhở
+                        </>
+                      ) : getStatus(exam) === "ongoing" ? (
+                        <>
+                          <i className="fas fa-pencil-alt"></i> Làm bài
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-eye"></i> Xem kết quả
+                        </>
+                      )}
+                    </Link>
+                    <Link
+                      to={`/exams/${exam._id}/leaderboard`}
+                      className="leaderboard-button"
+                    >
+                      <i className="fas fa-trophy"></i> Bảng xếp hạng
+                    </Link>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
       <motion.div
         className="all-exams"
@@ -303,86 +399,113 @@ const ExamList = () => {
         transition={{ duration: 0.5, delay: 0.3 }}
       >
         <h2>Tất cả đề thi</h2>
-        {filteredExams.length > 0 ? (
-          <div className="exam-grid">
-            {filteredExams.map((exam, index) => (
-              <motion.div
-                key={exam._id}
-                className={`exam-card ${exam.status}`}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
-              >
-                <div className="exam-card-header">
-                  <span className={`difficulty-badge ${exam.difficulty}`}>
-                    {exam.difficulty === "easy" ? "Dễ" : exam.difficulty === "medium" ? "Trung bình" : "Khó"}
-                  </span>
-                  <h3>{exam.title}</h3>
-                </div>
-                <div className="exam-card-body">
-                  <p>{exam.description}</p>
-                  <div className="exam-info">
-                    <span>
-                      <i className="fas fa-graduation-cap"></i>{" "}
-                      {exam.educationLevel.includes("grade")
-                        ? `Lớp ${exam.educationLevel.replace("grade", "")}`
-                        : "Đại học"}
+        {exams.length > 0 ? (
+          <>
+            <div className="exam-grid">
+              {exams.map((exam, index) => (
+                <motion.div
+                  key={exam._id}
+                  className={`exam-card ${getStatus(exam)}`}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
+                >
+                  <div className="exam-card-header">
+                    <span className={`difficulty-badge ${exam.difficulty}`}>
+                      {exam.difficulty === "easy"
+                        ? "Dễ"
+                        : exam.difficulty === "medium"
+                        ? "Trung bình"
+                        : "Khó"}
                     </span>
-                    <span>
-                      <i className="fas fa-book"></i>{" "}
+                    <h3 className="exam-title">{exam.title}</h3>
+                    <span className="exam-subject">
                       {exam.subject === "algebra"
                         ? "Đại số"
                         : exam.subject === "geometry"
-                          ? "Hình học"
-                          : exam.subject === "calculus"
-                            ? "Giải tích"
-                            : "Thống kê"}
-                    </span>
-                    <span>
-                      <i className="fas fa-clock"></i> {exam.duration} phút
-                    </span>
-                    <span>
-                      <i className="fas fa-question-circle"></i> {exam.questions?.length || 0} câu hỏi
+                        ? "Hình học"
+                        : exam.subject === "calculus"
+                        ? "Giải tích"
+                        : "Thống kê"}
                     </span>
                   </div>
-                  <div className="exam-status-info">
-                    <span className={`status-indicator ${exam.status}`}>
-                      {exam.status === "upcoming" ? (
+                  <div className="exam-card-body">
+                    <p className="exam-description">{exam.description}</p>
+                    <div className="exam-info">
+                      <div className="exam-info-item">
+                        <i className="fas fa-graduation-cap"></i>
+                        {exam.educationLevel.includes("grade")
+                          ? `Lớp ${exam.educationLevel.replace("grade", "")}`
+                          : "Đại học"}
+                      </div>
+                      <div className="exam-info-item">
+                        <i className="fas fa-clock"></i> {exam.duration} phút
+                      </div>
+                      <div className="exam-info-item">
+                        <i className="fas fa-question-circle"></i>{" "}
+                        {exam.questions?.length || 0} câu hỏi
+                      </div>
+                    </div>
+                    <div className="exam-status-info">
+                      <span className={`status-indicator ${getStatus(exam)}`}>
+                        {getStatus(exam) === "upcoming" ? (
+                          <>
+                            <i className="fas fa-hourglass-start"></i> Sắp diễn
+                            ra
+                          </>
+                        ) : getStatus(exam) === "ongoing" ? (
+                          <>
+                            <i className="fas fa-play-circle"></i> Đang diễn ra
+                          </>
+                        ) : (
+                          <>
+                            <i className="fas fa-check-circle"></i> Đã kết thúc
+                          </>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="exam-card-footer">
+                    <Link
+                      to={`/exams/${exam._id}`}
+                      className="take-exam-button"
+                      onClick={(e) => {
+                        if (getStatus(exam) === "upcoming") {
+                          e.preventDefault();
+                          handleReminder(exam._id);
+                        }
+                      }}
+                    >
+                      {getStatus(exam) === "upcoming" ? (
                         <>
-                          <i className="fas fa-hourglass-start"></i> Sắp diễn ra
+                          <i className="fas fa-bell"></i> Nhắc nhở
                         </>
-                      ) : exam.status === "ongoing" ? (
+                      ) : getStatus(exam) === "ongoing" ? (
                         <>
-                          <i className="fas fa-play-circle"></i> Đang diễn ra
+                          <i className="fas fa-pencil-alt"></i> Làm bài
                         </>
                       ) : (
                         <>
-                          <i className="fas fa-check-circle"></i> Đã kết thúc
+                          <i className="fas fa-eye"></i> Xem kết quả
                         </>
                       )}
-                    </span>
+                    </Link>
                   </div>
-                </div>
-                <div className="exam-card-footer">
-                  <Link to={`/exams/${exam._id}`} className="take-exam-button">
-                    {exam.status === "upcoming" ? (
-                      <>
-                        <i className="fas fa-bell"></i> Nhắc nhở
-                      </>
-                    ) : exam.status === "ongoing" ? (
-                      <>
-                        <i className="fas fa-pencil-alt"></i> Làm bài
-                      </>
-                    ) : (
-                      <>
-                        <i className="fas fa-eye"></i> Xem kết quả
-                      </>
-                    )}
-                  </Link>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                </motion.div>
+              ))}
+            </div>
+            <div className="pagination">
+              {Array.from({ length: totalPages }, (_, i) => (
+                <button
+                  key={i + 1}
+                  onClick={() => setPage(i + 1)}
+                  className={page === i + 1 ? "active" : ""}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+          </>
         ) : (
           <div className="no-exams">
             <i className="fas fa-search"></i>
@@ -407,7 +530,7 @@ const ExamList = () => {
         </motion.div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default ExamList
+export default ExamList;

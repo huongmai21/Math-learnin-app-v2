@@ -1,0 +1,28 @@
+{
+  "type": "bar",
+  "data": {
+    "labels": ["0-2", "3-4", "5-6", "7-8", "9-10"],
+    "datasets": [{
+      "label": "Phân bố điểm",
+      "data": [0, 0, 0, 0, 0],
+      "backgroundColor": ["#ff6f61", "#28a745", "#ffc107", "#4fc3f7", "#dc3545"],
+      "borderColor": ["#ff6f61", "#28a745", "#ffc107", "#4fc3f7", "#dc3545"],
+      "borderWidth": 1
+    }]
+  },
+  "options": {
+    "scales": {
+      "y": {
+        "beginAtZero": true,
+        "title": { "display": true, "text": "Số học viên" }
+      },
+      "x": {
+        "title": { "display": true, "text": "Khoảng điểm" }
+      }
+    },
+    "plugins": {
+      "legend": { "display": false },
+      "title": { "display": true, "text": "Phân bố điểm số" }
+    }
+  }
+}

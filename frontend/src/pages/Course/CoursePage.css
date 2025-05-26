@@ -240,6 +240,47 @@
   z-index: 10;
 }
 
+.skeleton {
+  background: #f0f0f0;
+  animation: pulse 1.5s infinite;
+}
+
+.skeleton-image {
+  height: 180px;
+  background: #e0e0e0;
+}
+
+.skeleton-title {
+  height: 20px;
+  width: 80%;
+  background: #e0e0e0;
+  margin-bottom: 10px;
+}
+
+.skeleton-description {
+  height: 15px;
+  width: 100%;
+  background: #e0e0e0;
+  margin-bottom: 10px;
+}
+
+.skeleton-meta {
+  height: 15px;
+  width: 50%;
+  background: #e0e0e0;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+.course-stats {
+  font-size: 0.9rem;
+  color: #666;
+}
+
 .course-loading {
   display: flex;
   justify-content: center;

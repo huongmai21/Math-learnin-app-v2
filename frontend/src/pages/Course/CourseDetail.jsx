@@ -6,13 +6,13 @@ import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import { Helmet } from "react-helmet";
 import {
-  getCourseById,
+  getAllCourses,
   enrollCourse,
   updateProgress,
-  getCourseLessons,
-  createLesson,
-  updateLesson,
-  deleteLesson,
+  getCourse,
+  addCourseContent,
+  updateCourseContent,
+  deleteCourseContent,
   createReview,
   getCourseReviews,
 } from "../../services/courseService";
@@ -42,24 +42,33 @@ const CourseDetail = () => {
   const [newReview, setNewReview] = useState({ rating: 5, comment: "" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [relatedCourses, setRelatedCourses] = useState([]);
+  const [expandedLessons, setExpandedLessons] = useState([]);
 
   useEffect(() => {
     const fetchCourse = async () => {
       setLoading(true);
-      setError(null);
       try {
-        const response = await getCourseById(id);
+        const response = await getCourse(id);
         setCourse(response.data);
-        const lessonsRes = await getCourseLessons(id);
-        setLessons(lessonsRes.data || []);
+        setLessons(response.data.contents || []);
+
+        // Fetch related courses
+        const relatedResponse = await getAllCourses({
+          category: response.data.category,
+          limit: 3,
+          excludeId: id,
+        });
+        setRelatedCourses(relatedResponse.data || []);
+
         if (user && token) {
           const reviewsRes = await getCourseReviews(id);
           setReviews(reviewsRes.data || []);
           const bookmarkRes = await getBookmarks();
-          setBookmarks(bookmarkRes.data.map((b) => b.courseId._id));
-
-          // Lấy tiến độ học tập ban đầu
-          const userProgress = user.progress?.find((p) => p.courseId === id);
+          setBookmarks(bookmarkRes.data.map((b) => b.courseId?._id.toString()));
+          const userProgress = response.data.progress?.find(
+            (p) => p.userId === user._id
+          );
           setProgress(userProgress || { completedContents: [] });
         }
       } catch (err) {
@@ -70,6 +79,14 @@ const CourseDetail = () => {
     };
     fetchCourse();
   }, [id, user, token]);
+
+  const toggleLesson = (lessonId) => {
+    setExpandedLessons((prev) =>
+      prev.includes(lessonId)
+        ? prev.filter((id) => id !== lessonId)
+        : [...prev, lessonId]
+    );
+  };
 
   const handleEnroll = async () => {
     if (!user || !token) {
@@ -131,7 +148,7 @@ const CourseDetail = () => {
   const handleAddLesson = async (e) => {
     e.preventDefault();
     try {
-      const response = await createLesson(id, newLesson);
+      const response = await addCourseContent(id, newLesson);
       setLessons([...lessons, response.data]);
       setNewLesson({ title: "", type: "video", url: "", isPreview: false });
       toast.success("Thêm bài học thành công!");
@@ -144,7 +161,11 @@ const CourseDetail = () => {
   const handleUpdateLesson = async (e) => {
     e.preventDefault();
     try {
-      const response = await updateLesson(id, editingLesson._id, newLesson);
+      const response = await updateCourseContent(
+        id,
+        editingLesson._id,
+        newLesson
+      );
       setLessons(
         lessons.map((item) =>
           item._id === editingLesson._id ? response.data : item
@@ -161,7 +182,7 @@ const CourseDetail = () => {
   // XOÁ BÀI HỌC
   const handleDeleteLesson = async (lessonId) => {
     try {
-      await deleteLesson(id, lessonId);
+      await deleteCourseContent(id, lessonId);
       setLessons(lessons.filter((item) => item._id !== lessonId));
       toast.success("Xóa bài học thành công!");
     } catch (err) {
@@ -226,19 +247,36 @@ const CourseDetail = () => {
         </Link>
         <div className="course-header">
           <img
-            src={course.thumbnail || "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png"}
+            src={
+              course.thumbnail ||
+              "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png"
+            }
             alt={course.title}
             className="course-thumbnail"
             onError={handleImageError}
           />
           <div className="course-info">
             <h2>{course.title}</h2>
+            <p className="course-rating">
+              Đánh giá:{" "}
+              {reviews.length > 0
+                ? (
+                    reviews.reduce((sum, r) => sum + r.rating, 0) /
+                    reviews.length
+                  ).toFixed(1)
+                : "N/A"}{" "}
+              sao ({reviews.length} lượt)
+            </p>
             <p className="course-description">{course.description}</p>
             <p className="course-price">
               Giá: {course.price.toLocaleString()} VND
             </p>
             <p className="course-instructor">
               Giảng viên: {course.instructorId?.username || "N/A"}
+            </p>
+            <p className="course-stats">
+              {course.duration || "N/A"} giờ | {course.contents?.length || 0}{" "}
+              bài học
             </p>
             {user && (
               <button
@@ -257,7 +295,7 @@ const CourseDetail = () => {
                       : "far fa-bookmark"
                   }
                 ></i>
-                {bookmarks.includes(id) ? " Đã bookmark" : " Bookmark"}
+                {/* {bookmarks.includes(id) ? " Đã bookmark" : " Bookmark"} */}
               </button>
             )}
           </div>
@@ -275,7 +313,7 @@ const CourseDetail = () => {
             )}
           </div>
         )}
-        {(user?.role === "teacher" || user?.role === "admin") && (
+        {(user?._id === course.instructorId) && (
           <div className="content-form-section">
             <h3>{editingLesson ? "Chỉnh sửa bài học" : "Thêm bài học"}</h3>
             <form
@@ -378,65 +416,75 @@ const CourseDetail = () => {
             <ul className="contents-list">
               {lessons.map((lesson) => (
                 <li key={lesson._id} className="content-item">
-                  <div className="content-info">
-                    {user?.enrolledCourses.includes(id) || lesson.isPreview ? (
-                      <a
-                        href={lesson.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="content-link"
-                      >
-                        {lesson.title} (
-                        {lesson.type === "video"
-                          ? "Video"
-                          : lesson.type === "document"
-                          ? "Tài liệu"
-                          : "Bài kiểm tra"}
-                        )
-                        {lesson.isPreview && (
-                          <span className="preview-tag">(Xem trước)</span>
-                        )}
-                      </a>
-                    ) : (
-                      <span className="content-locked">
-                        {lesson.title} (
-                        {lesson.type === "video"
-                          ? "Video"
-                          : lesson.type === "document"
-                          ? "Tài liệu"
-                          : "Bài kiểm tra"}
-                        ) - Đăng ký để xem
-                      </span>
-                    )}
-                    {user?.enrolledCourses.includes(id) && (
-                      <button
-                        onClick={() => handleCompleteLesson(lesson._id)}
-                        className={`complete-button ${
-                          progress.completedContents.includes(lesson._id)
-                            ? "completed"
-                            : ""
-                        }`}
-                      >
-                        {progress.completedContents.includes(lesson._id)
-                          ? "Đã hoàn thành"
-                          : "Đánh dấu hoàn thành"}
-                      </button>
-                    )}
+                  <div
+                    className="content-header"
+                    onClick={() => toggleLesson(lesson._id)}
+                  >
+                    <span>
+                      {lesson.title}{" "}
+                      {lesson.isPreview && (
+                        <span className="preview-tag">(Xem trước)</span>
+                      )}
+                    </span>
+                    <i
+                      className={`fas fa-chevron-${
+                        expandedLessons.includes(lesson._id) ? "up" : "down"
+                      }`}
+                    ></i>
                   </div>
-                  {(user?.role === "teacher" || user?.role === "admin") && (
-                    <div className="content-actions">
-                      <button
-                        onClick={() => handleEditLesson(lesson)}
-                        className="edit-button"
-                      >
-                        Sửa
-                      </button>
-                      <button
-                        onClick={() => handleDeleteLesson(lesson._id)}
-                        className="delete-button"
-                      >
-                        Xóa
-                      </button>
+                  {expandedLessons.includes(lesson._id) && (
+                    <div className="content-details">
+                      <p>
+                        Loại:{" "}
+                        {lesson.type === "video"
+                          ? "Video"
+                          : lesson.type === "document"
+                          ? "Tài liệu"
+                          : "Bài kiểm tra"}
+                      </p>
+                      {user?.enrolledCourses.includes(id) ||
+                      lesson.isPreview ? (
+                        <a
+                          href={lesson.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="content-link"
+                        >
+                          Xem nội dung
+                        </a>
+                      ) : (
+                        <span className="content-locked">Đăng ký để xem</span>
+                      )}
+                      {user?.enrolledCourses.includes(id) && (
+                        <button
+                          onClick={() => handleCompleteLesson(lesson._id)}
+                          className={`complete-button ${
+                            progress.completedContents.includes(lesson._id)
+                              ? "completed"
+                              : ""
+                          }`}
+                        >
+                          {progress.completedContents.includes(lesson._id)
+                            ? "Đã hoàn thành"
+                            : "Đánh dấu hoàn thành"}
+                        </button>
+                      )}
+                      {(user?._id === course.instructorId) && (
+                        <div className="content-actions">
+                          <button
+                            onClick={() => handleEditLesson(lesson)}
+                            className="edit-button"
+                          >
+                            Sửa
+                          </button>
+                          <button
+                            onClick={() => handleDeleteLesson(lesson._id)}
+                            className="delete-button"
+                          >
+                            Xóa
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </li>
@@ -502,6 +550,35 @@ const CourseDetail = () => {
             )}
           </div>
         </div>
+        {relatedCourses.length > 0 && (
+          <div className="related-courses-section">
+            <h3>Khóa học liên quan</h3>
+            <div className="course-grid">
+              {relatedCourses.map((course) => (
+                <div key={course._id} className="course-card">
+                  <div className="course-image">
+                    <img
+                      src={
+                        course.thumbnail ||
+                        "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png"
+                      }
+                      alt={course.title}
+                      onError={handleImageError}
+                    />
+                  </div>
+                  <div className="course-content">
+                    <h3 className="course-title">
+                      <Link to={`/courses/${course._id}`}>{course.title}</Link>
+                    </h3>
+                    <p className="course-price">
+                      Giá: {course.price.toLocaleString()} VND
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
